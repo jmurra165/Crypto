@@ -23,29 +23,44 @@ export const DEFAULTS = {
   fade: true,       // sell when in profit and the score drops below zero
   maxH1: 1000,      // do not buy a coin already up more than this % in the last hour (1000 = no limit)
   maxM5: 1000,      // do not buy a coin up more than this % in the last 5 minutes (1000 = no limit)
-  early: false      // also buy on building trade flow before the price has moved
+  early: false,     // also buy on building trade flow before the price has moved
+  maxH24: 100000,   // do not buy a coin already up more than this % in 24 hours (100000 = no limit)
+  take: 0,          // sell everything when this far up (0 = off)
+  sellBelow: -30    // sell when the momentum score falls to this or lower
 };
 
-// Where the adaptive wallet starts: the fixed tighter rules plus a limit on chasing coins that have already run.
-export const ADAPTIVE_START = Object.assign({}, DEFAULTS, { maxH1: 25, maxM5: 10 });
+// Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
+// coins that had already risen a long way, from thinly traded coins, and from holding losers down to a wide stop.
+// All three therefore skip coins up more than 50% in 24 hours, use a 12% stop, and sell when the score fades.
+const REVIEWED = { maxH24: 50, stop: 0.12, lockAt: 0, halfAt: 0, fade: false };
+// Takes a quick, fixed profit instead of waiting for a long run.
+export const QUICK = Object.assign({}, DEFAULTS, REVIEWED, { maxH1: 25, maxM5: 10, sizeLo: 5, take: 0.08, trailAt: 0, sellBelow: 15 });
+// Only deep, established pools that have not already moved; lets winners run on a 10% trailing stop.
+export const STEADY = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 15, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 15 });
+// Where the adaptive wallet starts; the daily tuning moves it from here.
+export const ADAPTIVE_START = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 25, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 20 });
+export const ADAPTIVE_VERSION = 2;
 
 // The values the daily tuning may move between, one step at a time.
 export const GRID = {
   buyLine: [30, 35, 40, 50, 60],
   rugMax: [20, 30, 40],
   maxFails: [0, 1, 2],
-  minLiq: [25000, 50000, 100000, 250000],
+  minLiq: [25000, 50000, 100000, 250000, 500000],
   confirm: [false, true],
   sizeLo: [2.5, 5],
-  stop: [0.15, 0.2, 0.25, 0.3],
+  stop: [0.08, 0.12, 0.15, 0.2, 0.25, 0.3],
   lockAt: [0, 0.1, 0.15, 0.25],
-  trailAt: [0.1, 0.2, 0.3],
-  trailDrop: [0.15, 0.2, 0.3],
+  trailAt: [0, 0.05, 0.1, 0.2, 0.3],
+  trailDrop: [0.08, 0.1, 0.15, 0.2, 0.3],
   halfAt: [0, 0.3, 0.5, 1],
   fade: [false, true],
   maxH1: [15, 25, 40, 1000],
   maxM5: [5, 10, 1000],
-  early: [false, true]
+  early: [false, true],
+  maxH24: [50, 100, 300, 100000],
+  take: [0, 0.05, 0.08, 0.12, 0.2],
+  sellBelow: [-30, 0, 15, 25]
 };
 
 const pc = v => Math.round(v * 100) + "%";
@@ -60,22 +75,31 @@ export const LABELS = {
   sizeLo: v => v + "% of the wallet on weaker signals",
   stop: v => "stop-loss at " + pc(v) + " down",
   lockAt: v => (v ? "break-even lock once " + pc(v) + " up" : "no break-even lock"),
-  trailAt: v => "trailing stop starts " + pc(v) + " up",
+  trailAt: v => (v ? "trailing stop starts " + pc(v) + " up" : "no trailing stop"),
   trailDrop: v => "trailing stop sells on a " + pc(v) + " fall from the peak",
   halfAt: v => (v ? "sell half at " + pc(v) + " up" : "never sell half early"),
   fade: v => (v ? "sell when in profit and the score drops below zero" : "ignore fading score while in profit"),
   maxH1: v => (v >= 1000 ? "no limit on how far a coin has already risen in the hour" : "skip coins already up more than " + v + "% in the last hour"),
   maxM5: v => (v >= 1000 ? "no limit on the 5-minute move" : "skip coins up more than " + v + "% in the last 5 minutes"),
-  early: v => (v ? "also buy early on building trade flow" : "no early-flow buys")
+  early: v => (v ? "also buy early on building trade flow" : "no early-flow buys"),
+  maxH24: v => (v >= 100000 ? "no limit on the 24-hour rise" : "skip coins already up more than " + v + "% in 24 hours"),
+  take: v => (v ? "sell everything at " + pc(v) + " up" : "no fixed take-profit"),
+  sellBelow: v => "sell when the score falls to " + v + " or lower"
 };
 
 export function describe(P) {
+  const caps = [P.maxH24 < 100000 ? P.maxH24 + "% in 24 hours" : "", P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean);
+  const sells = ["on a Rug risk or Avoid verdict", "when the score falls to " + P.sellBelow + " or lower", "at " + pc(P.stop) + " down"];
+  if (P.take) sells.push("at " + pc(P.take) + " up");
+  if (P.lockAt) sells.push("at the buy price once it has been " + pc(P.lockAt) + " up");
+  if (P.trailAt) sells.push("on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up");
+  if (P.fade) sells.push("when the score drops below zero while in profit");
   return "Buys when the score is " + P.buyLine + " or more, the rug score is under " + P.rugMax + ", " + (P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
     " and liquidity is at least " + usdK(P.minLiq) + (P.confirm ? ", and the signal is still there on the next check" : "") + "." +
-    (P.maxH1 < 1000 || P.maxM5 < 1000 ? " Skips coins already up more than " + [P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean).join(" or ") + "." : "") +
-    (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") + " Puts in " + P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that. " +
-    "Sells on a Sell, Rug risk or Avoid verdict, at " + pc(P.stop) + " down" + (P.lockAt ? ", at the buy price once it has been " + pc(P.lockAt) + " up" : "") +
-    ", on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up" + (P.fade ? ", or when the score drops below zero while in profit" : "") + "." + (P.halfAt ? " Sells half at " + pc(P.halfAt) + " up." : "");
+    (caps.length ? " Skips coins already up more than " + caps.join(", or ") + "." : "") +
+    (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") +
+    " Puts in " + (P.sizeHi === P.sizeLo ? P.sizeHi + "% of the wallet per buy" : P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that") + ". " +
+    "Sells " + sells.slice(0, -1).join(", ") + ", or " + sells[sells.length - 1] + "." + (P.halfAt ? " Sells half at " + pc(P.halfAt) + " up." : "");
 }
 
 export function freshWallet(start, now, extra) {
@@ -84,7 +108,9 @@ export function freshWallet(start, now, extra) {
 
 const num = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 // Verdicts that force an exit, worked out from the same fields the page uses.
-const forced = o => o.rug >= 60 ? "Rug risk verdict" : (!o.liq || o.liq < 10000) ? "Liquidity fell under $10k" : o.score <= -30 ? "Sell verdict" : "";
+const forced = (o, P) => o.rug >= 60 ? "Rug risk verdict" : (!o.liq || o.liq < 10000) ? "Liquidity fell under $10k" : o.score <= P.sellBelow ? (P.sellBelow <= -30 ? "Sell verdict" : "Score fell to " + o.score) : "";
+// A coin cannot be bought while it is in a state that would force a sale.
+const blocked = o => o.rug >= 60 || !o.liq || o.liq < 10000 || o.score <= -30;
 
 // Advance one wallet by one check. ctx: { now, solPx, fee, info(a) -> {sym, checks, conf}, confirmMin, confirmMax, countMisses, missMax, keepHist }
 export function stepWallet(W, obs, P, ctx) {
@@ -105,7 +131,8 @@ export function stepWallet(W, obs, P, ctx) {
       continue;
     }
     p.miss = 0; if (o.px > num(p.hi)) p.hi = o.px;
-    let why = forced(o);
+    let why = forced(o, P);
+    if (!why && P.take > 0 && o.px >= e * (1 + P.take)) why = "Took profit at " + pc(P.take) + " up";
     if (!why && o.px <= e * (1 - P.stop)) why = "Stop-loss, " + pc(P.stop) + " down";
     if (!why && P.lockAt > 0 && p.hi >= e * (1 + P.lockAt) && o.px <= e) why = "Back to the buy price after being " + pc(P.lockAt) + " up";
     if (!why && P.trailAt > 0 && p.hi >= e * (1 + P.trailAt) && o.px <= p.hi * (1 - P.trailDrop)) why = "Fell " + pc(P.trailDrop) + " from its peak";
@@ -118,8 +145,8 @@ export function stepWallet(W, obs, P, ctx) {
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
   for (const [a, o] of obs) {
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
-    if (!(o.px > 0) || o.oc === "p" || forced(o) || !(o.score >= P.buyLine || early) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
-    if (num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5) continue;
+    if (!(o.px > 0) || o.oc === "p" || blocked(o) || !(o.score >= P.buyLine || early) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
+    if (num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24) continue;
     live.add(a);
     if (W.pos[a] || (W.cool[a] && now - W.cool[a] < 3600e3) || !(o.liq >= P.minLiq)) continue;
     if (P.confirm) {

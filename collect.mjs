@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { DEFAULTS, ADAPTIVE_START, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { QUICK, STEADY, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -224,45 +224,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   meta.buysNow = buysNow;
   meta.open = signals.filter(r => r.st === "open").length;
 
-  // 6a. Auto wallet: play money that buys every new buy signal and sells when the signal exits.
-  const cfg = Object.assign({ startSol: 10, perSignalPct: 5, feePct: 1, resetId: 0 }, (readJSON(path.join(root, "config.json"), {}).wallet) || {});
-  let W = readState(path.join(dataDir, "wallet.json"), null);
-  if (!W || W.resetId !== cfg.resetId || !W.pos) W = { resetId: cfg.resetId, started: now, start: cfg.startSol, cash: cfg.startSol, pos: {}, hist: [], eq: [], skipped: 0 };
-  W.cfg = cfg;
-  if (solPx > 0) {
-    const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
-    const sellValue = (p, x) => { const gross = p.qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return gross * (1 - imp) * (1 - fee) / solPx; };
-    const openSet = new Set(signals.filter(r => r.st === "open").map(r => r.a));
-    Object.keys(W.pos).forEach(a => {
-      if (openSet.has(a)) return;
-      const p = W.pos[a], x = A.get(a), rec = signals.find(r => r.a === a && r.st === "closed") || {}, ex = rec.x || {};
-      const out = x && x.px > 0 && !ex.stale ? sellValue(p, x) : 0;
-      W.cash += out;
-      W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: x && x.px > 0 ? x.px : num(ex.px), pnl: out - p.cost, cost: p.cost, held: now - p.at,
-        why: (ex.why || "Signal ended") + (out === 0 ? ", could not be sold" : ""), checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
-      delete W.pos[a];
-    });
-    const holdings = () => Object.keys(W.pos).reduce((t, a) => { const p = W.pos[a], x = A.get(a); if (x && x.px > 0) { p.val = sellValue(p, x); p.px = x.px; p.now = x.signal; } return t + num(p.val); }, 0);
-    let equity = W.cash + holdings();
-    openedNow.forEach(a => {
-      const x = A.get(a), t = tokens.get(a); if (W.pos[a] || !x || !t) return;
-      const amt = Math.min(equity * (Number(cfg.perSignalPct) || 5) / 100, W.cash);
-      if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; return; }
-      const usdIn = amt * solPx, imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
-      const sym = (t.pair.baseToken || {}).symbol || "?", checks = x.passN + "/" + x.checks.length;
-      W.pos[a] = { sym, qty, cost: amt, at: now, px0: fill, checks, conf: x.conf };
-      W.cash -= amt;
-      W.hist.unshift({ t: now, side: "buy", sym, a, amt, px: fill, checks, conf: x.conf });
-    });
-    equity = W.cash + holdings();
-    W.equity = equity; W.solPx = solPx; W.t = now;
-    const last = W.eq[W.eq.length - 1];
-    if (!last || now - last.t >= 4.5 * 60e3) W.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
-    if (W.eq.length > 2500) W.eq = W.eq.filter((_, i) => i % 2 === 0 || i > W.eq.length - 400);
-    W.hist = W.hist.slice(0, 800);
-    writeJSON(path.join(dataDir, "wallet.json"), W);
-    meta.wallet = Math.round(equity * 1e4) / 1e4;
-  } else errors.push("no SOL price, auto wallet not updated");
+  const cfg = Object.assign({ startSol: 10, feePct: 1, resetId: 0 }, (readJSON(path.join(root, "config.json"), {}).wallet) || {});
+  if (!(solPx > 0)) errors.push("no SOL price, auto wallets not updated");
 
   // 6c. Rule-driven wallets, stepped by the shared engine in strategy.mjs.
   //     "wallet-b" keeps the fixed tighter rules. "wallet-c" uses whatever rules the daily tuning last settled on.
@@ -275,12 +238,24 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     });
     const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
     const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
-    const adaptive = Object.assign({}, ADAPTIVE_START, tuning && tuning.current ? tuning.current : {});
+    const adaptive = Object.assign({}, ADAPTIVE_START, tuning && tuning.ver === ADAPTIVE_VERSION && tuning.current ? tuning.current : {});
     const info = a => { const x = A.get(a), t = tokens.get(a); return { sym: (t && (t.pair.baseToken || {}).symbol) || "?", checks: x ? x.passN + "/" + x.checks.length : "", conf: x ? x.conf : "" }; };
-    const ruleWallet = (file, P, idKey, metaKey, extra) => {
+    const OLD_NAMES = { "wallet.json": "Original rules", "wallet-b.json": "Tighter rules", "wallet-c.json": "Adaptive rules" };
+    const ruleWallet = (file, name, P, idKey, metaKey, extra) => {
       const rid = num(cfg[idKey]);
       let R = readState(path.join(dataDir, file), null);
-      if (!R || R.resetId !== rid || !R.pos) R = freshWallet(cfg.startSol, now, { resetId: rid });
+      if (!R || R.resetId !== rid || !R.pos) {
+        // A reset keeps the old wallet on file and carries a one-line summary of how it ended.
+        let prev = null;
+        if (R && R.pos && R.start > 0) {
+          fs.mkdirSync(path.join(dataDir, "archive"), { recursive: true });
+          writeJSON(path.join(dataDir, "archive", file.replace(".json", "") + "-round" + num(R.resetId) + ".json"), R);
+          const sells = (R.hist || []).filter(h => h.side === "sell");
+          prev = { name: R.name || OLD_NAMES[file] || "Earlier rules", start: R.start, equity: num(R.equity) || R.cash, started: R.started, ended: now, trades: sells.length, wins: sells.filter(h => h.pnl > 0).length };
+        }
+        R = freshWallet(cfg.startSol, now, { resetId: rid, prev });
+      }
+      R.name = name;
       R.cfg = { feePct: cfg.feePct }; R.params = P; R.about = describe(P); Object.assign(R, extra || {});
       if (!(solPx > 0)) return;
       const equity = stepWallet(R, obs, P, { now, solPx, fee, info, verdictOf: a => (A.get(a) || {}).signal });
@@ -292,8 +267,9 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       writeJSON(path.join(dataDir, file), R);
       meta[metaKey] = Math.round(equity * 1e4) / 1e4;
     };
-    ruleWallet("wallet-b.json", DEFAULTS, "resetIdB", "walletB");
-    ruleWallet("wallet-c.json", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
+    ruleWallet("wallet.json", "Quick profit", QUICK, "resetId", "wallet");
+    ruleWallet("wallet-b.json", "Established coins", STEADY, "resetIdB", "walletB");
+    ruleWallet("wallet-c.json", "Adaptive", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
   }
 
   // 6b. Keep a record of each coin's inputs and verdict, so rule changes can later be replayed against
