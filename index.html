@@ -218,7 +218,7 @@ canvas.chart{display:block;width:100%;height:300px;touch-action:pan-y}
 .plan p{margin:0;color:var(--muted)}
 .trades{margin-top:22px}
 .tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px 30px}
-.tape li{display:grid!important;grid-template-columns:64px 44px 1fr auto;gap:10px;font-family:var(--mono);font-size:13px}
+.tape li{display:grid!important;grid-template-columns:56px 44px 1fr auto;gap:10px;font-family:var(--mono);font-size:13px}
 .tape a{color:var(--accent)}
 details.fold{border-top:1px solid var(--line);padding-top:14px;color:var(--muted);max-width:80ch}
 details.fold summary{cursor:pointer;color:var(--fg);font-weight:500}
@@ -377,6 +377,7 @@ details.fold p{margin:10px 0 0}
       <div><span class="eyebrow">Signal outcomes</span><div class="big num" id="soHead">—</div><div class="muted" id="soSub"></div></div>
       <div class="kpis" id="soKpis"></div>
     </section>
+    <div class="phd"><p class="muted" id="soSrc" style="margin:0;max-width:70ch"></p><div class="chips"><button class="btn small" data-src="bg">Background tracker</button><button class="btn small" data-src="local">This browser</button></div></div>
     <p class="muted" id="soNote" style="margin:0;max-width:85ch"></p>
     <section class="panel">
       <div class="phd"><h2>Closed signals, oldest to newest</h2><span class="muted">Bar height is the profit or loss, capped at 100%</span></div>
@@ -401,6 +402,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Signal score</b> runs from −100 to +100 and now leans on trading flow more than price: price change over 5 minutes (up to ±10), 1 hour (±24) and 6 hours (±16); buy pressure, the share of the last hour's trades that were buys (±45, needs 20 or more trades); sustained buying over 6 hours (±20, needs 50 or more trades); volume trend against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours.</p>
     <p><b>Buy</b> needs a score of +35 or more, low rug risk, and no more than one failed safety check. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
     <p><b>Confidence</b> on a buy is strong at 10 or more checks passed, moderate at 8 or 9, and weak below that. It is capped at moderate when the on-chain checks could not be loaded.</p>
+    <p><b>Background tracker</b> is a scheduled job in the GitHub repository that runs the same scoring about every 10 minutes, day and night, and saves every buy signal and its exit. It follows the trending scan, new pairs and the coins in the repository's watchlist file, which is separate from the watchlist in this browser. It has no chart data, so its checklists show the chart check as not checked.</p>
     <p><b>Demo wallet</b> uses play money and never touches a real wallet. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
     <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
     <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
@@ -424,8 +426,10 @@ const DEFAULT_WATCH = [
   "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", // WIF
   "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"  // POPCAT
 ];
+/*CORE>*/
 const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const BUY_AT = 35, SELL_AT = -30, RUG_HIGH = 60, RUG_MED = 30;
+/*<CORE*/
 const GT = "https://api.geckoterminal.com/api/v2/networks/solana";
 const SOL = "So11111111111111111111111111111111111111112";
 const TF = {"5m":["minute",5], "15m":["minute",15], "1h":["hour",1], "4h":["hour",4], "1d":["day",1]};
@@ -446,9 +450,11 @@ function load(k, d){ try{ const v = localStorage.getItem(k); return v == null ? 
 function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/*CORE>*/
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const n = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 const sg = x => (x > 0 ? "+" : "") + x;
+/*<CORE*/
 S.demo = load("mr.demo", null);
 if(!S.demo || typeof S.demo !== "object" || !S.demo.pos || !Array.isArray(S.demo.hist)) S.demo = {start: 1000, cash: 1000, pos: {}, hist: []};
 if(!(Number(S.demo.fee) >= 0)) S.demo.fee = 1; if(!Array.isArray(S.demo.eq)) S.demo.eq = []; if(!S.demo.auto || typeof S.demo.auto !== "object") S.demo.auto = {on: false, amt: 50};
@@ -463,6 +469,7 @@ async function getJSON(url){
   return r.json();
 }
 
+/*CORE>*/
 /* ---------- scoring ---------- */
 function analyse(t, hist, rc, boost, pos, lean){
   const p = t.pair, now = Date.now(), px = Number(p.priceUsd) || 0;
@@ -651,7 +658,9 @@ const why = [];
     impact100: impact(100), impact1k: impact(1000), position, px, checks, passN, failN: failed.length, naN, hold: H, oc, ins: oc ? rc.insWallets : 0, lp: oc ? rc.lpLockedPct : null, auth: oc ? rc.auth : null};
 }
 
+/*<CORE*/
 /* ---------- formatting ---------- */
+/*CORE>*/
 function money(x){
   x = n(x); if(!x) return "—";
   if(x >= 1e9) return "$" + (x/1e9).toFixed(2) + "B";
@@ -668,6 +677,7 @@ function price(x){
 function pct(x){ if(typeof x !== "number" || !isFinite(x)) return "—"; return (x > 0 ? "+" : "") + (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)) + "%"; }
 function pctCell(x, cls){ const c = typeof x !== "number" ? "muted" : x > 0 ? "up" : x < 0 ? "down" : "muted"; return '<td class="num ' + c + (cls ? " " + cls : "") + '">' + pct(x) + "</td>"; }
 function age(h){ if(h == null) return "unknown"; if(h < 1) return Math.max(1, Math.round(h*60)) + " min"; if(h < 48) return Math.round(h) + " h"; if(h < 24*60) return Math.round(h/24) + " days"; return (h/24/365).toFixed(1) + " yr"; }
+/*<CORE*/
 function ago(t){ const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min" : m < 1440 ? Math.round(m/60) + " h" : Math.round(m/1440) + " d"; }
 function spark(hist){
   if(!hist || hist.pts.length < 3) return "";
@@ -742,6 +752,7 @@ async function loadPrices(){
   if(posDirty) save("mr.pos", S.pos);
 }
 
+/*CORE>*/
 const POOL_OWNERS = new Set(["5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"]);
 function parseReport(j){
   j = j || {};
@@ -767,6 +778,7 @@ function parseReport(j){
   return out;
 }
 
+/*<CORE*/
 let rcRunning = false;
 async function rugcheckQueue(){
   if(rcRunning || S.rcOff) return; rcRunning = true;
@@ -799,7 +811,7 @@ async function tick(force){
     S.error = "Couldn't reach DexScreener. Check your connection; the page will keep retrying.";
   }
   S.busy = false; nextAt = Date.now() + S.interval * 1000;
-  render(); sampleEquity(false); rugcheckQueue(); fillRecords();
+  render(); sampleEquity(false); rugcheckQueue(); fillRecords(); loadBg();
 }
 
 /* ---------- candles, trades and indicators ---------- */
@@ -820,7 +832,7 @@ async function loadDetail(a){
     }).finally(() => inflight.delete(ck)));
   }
   const tr = S.trades.get(a);
-  if((!tr || now - tr.at > 60e3) && !inflight.has(a)){
+  if((!tr || now - tr.at > 30e3) && !inflight.has(a)){
     inflight.add(a);
     jobs.push(getJSON(GT + "/pools/" + pool + "/trades").then(j => {
       const list = ((j || {}).data || []).map(d => { const x = (d || {}).attributes || {}; return {t: Date.parse(x.block_timestamp), kind: x.kind, usd: Number(x.volume_in_usd) || 0, wallet: x.tx_from_address || ""}; })
@@ -912,6 +924,8 @@ function planText(addr){
     (imp != null ? " A buy of that size would move the price about " + imp.toFixed(imp < 1 ? 2 : 1) + "%" + (imp > 2 ? ", which is a lot. A smaller position would be safer." : ".") : "") +
     " Meme coins can drop straight through a stop, so the real loss can be larger.";
 }
+S.tape = "latest";
+function agoS(t){ const sec = Math.max(0, Math.round((Date.now() - t) / 1000)); return sec < 90 ? sec + " s" : sec < 5400 ? Math.round(sec / 60) + " min" : (sec / 3600).toFixed(1) + " h"; }
 function tradeRead(list, liq){
   const sum = l => l.reduce((s, x) => s + x.usd, 0);
   const buys = list.filter(x => x.kind === "buy"), sells = list.filter(x => x.kind === "sell"), bu = sum(buys), su = sum(sells);
@@ -927,7 +941,9 @@ function tradeRead(list, liq){
   else notes.push({tone:"neu", text:"No trades over " + usd(whale) + " in this sample, so the move is made of small trades"});
   if(list.length >= 20 && topShare >= 0.3) notes.push({tone:"neg", text:"One wallet made " + Math.round(topShare * 100) + "% of the volume in this sample. That can mean wash trading or a single player moving the price"});
   if(list.length >= 20 && w.size && w.size < list.length * 0.3) notes.push({tone:"neg", text:"Only " + w.size + " wallets made these " + list.length + " trades, so activity is narrower than the trade count suggests"});
-  return {bu, su, span: spanTxt, uniq: w.size, notes, count: list.length, big: [...list].sort((p, q) => q.usd - p.usd).slice(0, 8)};
+  return {bu, su, span: spanTxt, uniq: w.size, notes, count: list.length, big: [...list].sort((p, q) => q.usd - p.usd).slice(0, 12),
+    latest: [...list].sort((p, q) => q.t - p.t).slice(0, 15), newest: Math.max(...ts),
+    m5: (() => { const l5 = list.filter(x => Date.now() - x.t <= 5 * 60e3), b5 = l5.filter(x => x.kind === "buy"), s5 = l5.filter(x => x.kind === "sell"); return {nb: b5.length, ns: s5.length, bu: sum(b5), su: sum(s5)}; })()};
 }
 
 function tfTime(t){ const d = new Date(t * 1000); return S.tf === "1d" || S.tf === "4h" ? d.toLocaleDateString([], {day:"numeric", month:"short"}) : d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }
@@ -1027,11 +1043,15 @@ function tradesBlock(t, a){
     inner = '<div class="tgrid"><div><dl class="kv"><dt>Sample</dt><dd>' + r.count + " trades, " + esc(r.span) + "</dd>" +
       "<dt>Bought</dt><dd>" + usd(r.bu) + "</dd><dt>Sold</dt><dd>" + usd(r.su) + "</dd>" +
       "<dt>Money flow</dt><dd>" + (tot ? '<div class="press"><i style="width:' + (r.bu / tot * 100).toFixed(0) + '%"></i></div>' : "") + (r.bu >= r.su ? "+" : "−") + usd(Math.abs(r.bu - r.su)) + " net</dd>" +
-      "<dt>Wallets</dt><dd>" + (r.uniq || "—") + '</dd></dl><ul style="margin-top:12px">' +
+      "<dt>Wallets</dt><dd>" + (r.uniq || "—") + "</dd>" +
+      "<dt>Last 5 minutes</dt><dd>" + (r.m5.nb + r.m5.ns ? r.m5.nb + " buys (" + usd(r.m5.bu) + "), " + r.m5.ns + " sells (" + usd(r.m5.su) + ")" : "no trades") + "</dd>" +
+      "<dt>Newest trade</dt><dd>" + agoS(r.newest) + " ago</dd>" +
+      '</dl><ul style="margin-top:12px">' +
       r.notes.map(x => '<li><span class="sev ' + (x.tone === "pos" ? "pos" : x.tone === "neg" ? "high" : "low") + '"></span><span>' + esc(x.text) + "</span></li>").join("") + "</ul></div>" +
-      '<div><ul class="tape">' + r.big.map(x => '<li><span class="muted">' + ago(x.t) + '</span><span class="' + (x.kind === "buy" ? "up" : "down") + '">' + (x.kind === "buy" ? "Buy" : "Sell") + "</span><span>" + usd(x.usd) + "</span>" +
+      '<div><div class="chips" style="margin-bottom:10px"><button class="btn small' + (S.tape === "latest" ? " on" : "") + '" data-tape="latest">Latest</button><button class="btn small' + (S.tape === "largest" ? " on" : "") + '" data-tape="largest">Largest</button></div>' +
+      '<ul class="tape">' + (S.tape === "largest" ? r.big : r.latest).map(x => '<li><span class="muted">' + agoS(x.t) + '</span><span class="' + (x.kind === "buy" ? "up" : "down") + '">' + (x.kind === "buy" ? "Buy" : "Sell") + "</span><span>" + usd(x.usd) + "</span>" +
         (ADDR_RE.test(x.wallet) ? '<a href="https://solscan.io/account/' + esc(x.wallet) + '" target="_blank" rel="noopener noreferrer">' + esc(x.wallet.slice(0, 4) + "…" + x.wallet.slice(-4)) + "</a>" : "<span></span>") + "</li>").join("") +
-      '</ul><div class="muted" style="font-size:12px;margin-top:6px">The 8 largest trades in the sample. Tap a wallet to see its history on Solscan.</div></div></div>';
+      '</ul><div class="muted" style="font-size:12px;margin-top:6px">' + (S.tape === "largest" ? "The 12 largest trades in the sample." : "The 15 most recent trades, newest first.") + " Refreshes every 30 seconds, and the data source can run a minute or so behind. Tap a wallet to see its history on Solscan.</div></div></div>";
   }
   return '<div class="trades"><h3>Recent trades</h3>' + inner + "</div>";
 }
@@ -1218,6 +1238,16 @@ S.rec = load("mr.rec", []); if(!Array.isArray(S.rec)) S.rec = [];
 S.rec.forEach(r => { if(!r.st) r.st = "open"; if(!(r.hi > 0)) r.hi = r.px; if(!(r.lo > 0)) r.lo = r.px; if(!(r.last > 0)) r.last = r.px; if(!r.r) r.r = {}; });
 S.sf = "all";
 const HZ = {h1: 3600e3, h6: 6 * 3600e3, h24: 24 * 3600e3};
+const BG_URL = "https://raw.githubusercontent.com/jmurra165/Crypto/data/signals.json";
+S.recSrc = load("mr.src", "bg"); S.bg = null; let bgAt = 0;
+const recs = () => S.recSrc === "bg" && S.bg ? S.bg.signals : S.rec;
+async function loadBg(){
+  if(Date.now() - bgAt < 110e3) return; bgAt = Date.now();
+  try{
+    const j = await getJSON(BG_URL + "?t=" + Math.floor(Date.now() / 120e3));
+    if(j && Array.isArray(j.signals)){ j.signals.forEach(r => { if(!r.r) r.r = {}; }); S.bg = j; renderRec(); renderNav(); }
+  }catch(e){}
+}
 function logBuy(a, t, x){
   const now = Date.now();
   if(!(x.px > 0) || S.rec.some(r => r.a === a && (r.st === "open" || (r.x && now - r.x.t < 3600e3)))) return;
@@ -1269,9 +1299,10 @@ async function fillRecords(){
   filling = false;
 }
 function renderRec(){
+  const R = recs(), bg = S.recSrc === "bg" && !!S.bg;
   const med = v => { const s2 = [...v].sort((x, y) => x - y), m = Math.floor(s2.length / 2); return s2.length % 2 ? s2[m] : (s2[m - 1] + s2[m]) / 2; };
   const pl = r => r.st === "closed" ? r.x.px / r.px - 1 : r.last / r.px - 1;
-  const closed = S.rec.filter(r => r.st === "closed" && r.x && r.x.px > 0), open = S.rec.filter(r => r.st === "open"), N = S.rec.length;
+  const closed = R.filter(r => r.st === "closed" && r.x && r.x.px > 0), open = R.filter(r => r.st === "open"), N = R.length;
   const cp = closed.map(pl), wins = cp.filter(v => v > 0).length, avg = cp.length ? cp.reduce((t, v) => t + v, 0) / cp.length : 0;
   $("soHead").innerHTML = cp.length ? '<span class="' + tone(avg) + '">' + pct(avg * 100) + "</span>" : "—";
   $("soSub").textContent = cp.length ? "Average result per closed buy signal. " + wins + " of " + cp.length + " made money. " + open.length + " still open." : open.length ? open.length + " buy signal" + (open.length === 1 ? " is" : "s are") + " open and none has reached an exit yet." : "Nothing logged yet.";
@@ -1283,19 +1314,24 @@ function renderRec(){
     '<div><b class="' + (cp.length ? tone(avg * 100 * cp.length) : "") + '">' + (cp.length ? sgn(avg * 100 * cp.length) : "—") + "</b><span>$100 on every closed signal" + (cp.length ? ", or " + sgn((avg - 0.02) * 100 * cp.length) + " after 2% costs" : "") + "</span></div>" +
     '<div><b class="' + (op.length ? tone(oavg) : "") + '">' + (op.length ? pct(oavg * 100) : "—") + "</b><span>Average across " + open.length + " open</span></div>" +
     "<div><b>" + (held.length ? dur(med(held)) : "—") + "</b><span>Typical time from buy to exit</span></div>";
-  $("soNote").textContent = !N ? "" : (cp.length < 30 ? "Only " + cp.length + " closed so far, which is too few to judge the rules by. Treat these as anecdotes until there are 30 or more. " : "") + "Results are price to price, before costs. Signals and exits are only seen while this page is open.";
+  document.querySelectorAll("[data-src]").forEach(b => { b.classList.toggle("on", b.dataset.src === (bg ? "bg" : "local")); b.disabled = b.dataset.src === "bg" && !S.bg; });
+  $("recClear").hidden = bg;
+  const lastRun = S.bg && S.bg.meta ? S.bg.meta.lastRun : 0;
+  $("soSrc").textContent = bg ? "Tracked around the clock by the background job, about every 10 minutes. Last run " + (lastRun ? agoS(lastRun) + " ago" : "unknown") + (S.bg.meta && S.bg.meta.scanned ? ", " + S.bg.meta.scanned + " coins scanned" : "") + "." + (lastRun && Date.now() - lastRun > 45 * 60e3 ? " That is longer than expected. GitHub sometimes delays or pauses scheduled jobs." : "")
+    : S.bg ? "Showing signals seen by this browser only, while the page was open." : "The background tracker has no data yet, so this shows signals seen by this browser while the page was open.";
+  $("soNote").textContent = !N ? "" : (cp.length < 30 ? "Only " + cp.length + " closed so far, which is too few to judge the rules by. Treat these as anecdotes until there are 30 or more. " : "") + "Results are price to price, before costs." + (bg ? " Exits are checked every 10 minutes or so, so a fast drop can be caught later than a live page would catch it." : " Signals and exits are only seen while this page is open.");
   const seq = [...closed].sort((x, y) => x.x.t - y.x.t);
   $("soBars").innerHTML = seq.length ? seq.map(r => { const v = pl(r), h = Math.max(3, Math.min(1, Math.abs(v)) * 46).toFixed(0);
     return '<div class="bar2" title="' + esc(r.sym + " " + pct(v * 100)) + '"><i class="' + (v >= 0 ? "pos" : "neg") + '" style="height:' + h + 'px"></i></div>'; }).join("") : '<span class="muted">Bars appear here as signals close.</span>';
   $("soConf").innerHTML = ["Strong", "Moderate", "Weak"].map(c => { const cl = closed.filter(r => r.conf === c), v = cl.map(pl), a = v.length ? v.reduce((t, z) => t + z, 0) / v.length : 0;
     return "<tr><td><b>" + c + '</b></td><td class="num">' + cl.length + '</td><td class="num">' + (v.length ? v.filter(z => z > 0).length + " of " + v.length : "—") + '</td><td class="num ' + (v.length ? tone(a) : "muted") + '">' + (v.length ? pct(a * 100) : "—") + '</td><td class="num">' + open.filter(r => r.conf === c).length + "</td></tr>"; }).join("");
   $("recStats").innerHTML = Object.keys(HZ).map(k => {
-    const v = S.rec.map(r => r.r[k]).filter(x => typeof x === "number"), lab = {h1:"1 hour", h6:"6 hours", h24:"24 hours"}[k];
+    const v = R.map(r => r.r[k]).filter(x => typeof x === "number"), lab = {h1:"1 hour", h6:"6 hours", h24:"24 hours"}[k];
     if(!v.length) return "<div><b class=\"muted\">—</b><span>After " + lab + ": nothing measured yet</span></div>";
     const m = med(v) * 100;
     return '<div><b class="' + tone(m) + '">' + pct(m) + "</b><span>Median after " + lab + "</span><span>" + v.filter(x => x > 0).length + " of " + v.length + " were up</span></div>";
   }).join("");
-  const rows = S.rec.filter(r => S.sf === "all" || r.st === S.sf);
+  const rows = R.filter(r => S.sf === "all" || r.st === S.sf);
   $("soBox").hidden = !rows.length; $("soEmpty").hidden = !!rows.length;
   if(!rows.length && N) $("soEmpty").textContent = "No " + S.sf + " signals right now."; 
   $("soRows").innerHTML = rows.slice(0, 80).map(r => { const v = pl(r), isOpen = r.st === "open", end = isOpen ? Date.now() : r.x.t;
@@ -1476,6 +1512,7 @@ function toggleWatch(a){
 }
 $("rows").addEventListener("click", e => {
   const st = e.target.closest("[data-star]"); if(st){ toggleWatch(st.dataset.star); return; }
+  const tp = e.target.closest("[data-tape]"); if(tp){ S.tape = tp.dataset.tape; render(); return; }
   const tfb = e.target.closest("[data-tf]"); if(tfb){ S.tf = tfb.dataset.tf; save("mr.tf", S.tf); S.hover.clear(); render(); return; }
   if(demoClick(e)) return;
   const en = e.target.closest("[data-enter]");
@@ -1570,7 +1607,7 @@ function renderNav(){
   $("nvBuy").textContent = buys ? buys + " buy" : "";
   const D = S.demo, v = demoValue().equity; $("nvWallet").textContent = D.hist.length ? pct((v / D.start - 1) * 100) : "";
   $("nvWallet").className = "bdg " + (D.hist.length ? tone(v - D.start) : "");
-  const o = S.rec.filter(r => r.st === "open").length; $("nvOut").textContent = o ? o + " open" : "";
+  const o = recs().filter(r => r.st === "open").length; $("nvOut").textContent = o ? o + " open" : "";
 }
 function openCoin(a){
   if(!ADDR_RE.test(a)) return;
@@ -1582,6 +1619,7 @@ function openCoin(a){
 document.addEventListener("click", e => {
   const v = e.target.closest("[data-view]"); if(v){ S.view = v.dataset.view; applyView(); window.scrollTo({top: 0}); return; }
   const o = e.target.closest("[data-open]"); if(o){ openCoin(o.dataset.open); return; }
+  const sr = e.target.closest("[data-src]"); if(sr){ S.recSrc = sr.dataset.src; save("mr.src", S.recSrc); renderRec(); renderNav(); return; }
   const sf = e.target.closest("[data-sf]"); if(sf){ S.sf = sf.dataset.sf; document.querySelectorAll("[data-sf]").forEach(b => b.classList.toggle("on", b === sf)); renderRec(); return; }
   const pc = e.target.closest("[data-pc]"); if(pc){ S.demoAmt = String(Math.floor(S.demo.cash * Number(pc.dataset.pc) * 100) / 100); save("mr.damt", S.demoAmt); document.querySelectorAll("[data-damt]").forEach(i => { i.value = S.demoAmt; }); renderTicket(); return; }
   if(e.target.closest("#v-wallet")) demoClick(e);
