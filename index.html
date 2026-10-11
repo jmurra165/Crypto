@@ -6,14 +6,14 @@
 <title>Meme Radar</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-/* Layout: one working column. Status bar, three tallies, then a dense table whose rows open into the reasoning. */
+/* Layout: one working column. Status, four verdict tallies that double as filters, a buy-signal spotlight, then a dense table whose rows open into the full reasoning. */
 :root{
   color-scheme:dark;
   --bg:#0d1417; --surface:#141e23; --raised:#1b282e; --line:#26363d;
   --fg:#e4edf0; --muted:#8a9fa7;
   --accent:#7aa7ff;
   --buy:#3ecf8e; --sell:#f0616d; --warn:#f2a93d;
-  --buy-bg:rgba(62,207,142,.14); --sell-bg:rgba(240,97,109,.15); --warn-bg:rgba(242,169,61,.15); --mute-bg:rgba(138,159,167,.14);
+  --buy-bg:rgba(62,207,142,.13); --sell-bg:rgba(240,97,109,.14); --warn-bg:rgba(242,169,61,.15); --mute-bg:rgba(138,159,167,.14);
   --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
   --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -21,22 +21,24 @@
 @media (prefers-color-scheme: light){
   :root:not([data-theme="dark"]){
     color-scheme:light;
-    --bg:#f1f5f6; --surface:#ffffff; --raised:#f6f9fa; --line:#d3dee2;
+    --bg:#f1f5f6; --surface:#ffffff; --raised:#f5f8f9; --line:#d3dee2;
     --fg:#122027; --muted:#586d76;
     --accent:#2456c9;
     --buy:#0c7f4d; --sell:#c22c3b; --warn:#9a5b00;
-    --buy-bg:rgba(12,127,77,.11); --sell-bg:rgba(194,44,59,.10); --warn-bg:rgba(154,91,0,.11); --mute-bg:rgba(88,109,118,.11);
+    --buy-bg:rgba(12,127,77,.10); --sell-bg:rgba(194,44,59,.09); --warn-bg:rgba(154,91,0,.11); --mute-bg:rgba(88,109,118,.11);
   }
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-block:20px 48px;padding-inline:16px}
-.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.wrap{max-width:1220px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .muted{color:var(--muted)}
+.up{color:var(--buy)} .down{color:var(--sell)}
+h2{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
 
 header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
 h1{font:800 30px/1 var(--display);margin:0;letter-spacing:-.02em}
@@ -47,17 +49,43 @@ h1 small{display:block;font:500 13px/1.4 var(--body);color:var(--muted);letter-s
 .btn{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:6px 12px}
 .btn:hover{border-color:var(--accent)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.btn.small{padding:3px 9px;font-size:12px}
 select,input[type=text]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+.banner{border:1px solid var(--sell);background:var(--sell-bg);border-radius:6px;padding:10px 14px}
 
-.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.tally div{border-top:2px solid var(--line);padding-top:8px;min-width:0}
+/* tallies double as filters */
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tally button{background:none;border:0;border-top:2px solid var(--line);padding:8px 8px 6px;text-align:left;min-width:0;border-radius:0 0 6px 6px}
+.tally button:hover,.tally button[aria-pressed=true]{background:var(--raised)}
 .tally b{display:block;font:600 26px/1.1 var(--mono)}
 .tally span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.tally .t-buy{border-color:var(--buy)} .tally .t-buy b{color:var(--buy)}
-.tally .t-sell{border-color:var(--sell)} .tally .t-sell b{color:var(--sell)}
-.tally .t-rug{border-color:var(--warn)} .tally .t-rug b{color:var(--warn)}
+.tally em{display:block;font-style:normal;font-size:11px;color:var(--accent);height:16px}
+.t-buy{border-color:var(--buy)!important} .t-buy b{color:var(--buy)}
+.t-hold b{color:var(--fg)}
+.t-sell{border-color:var(--sell)!important} .t-sell b{color:var(--sell)}
+.t-rug{border-color:var(--warn)!important} .t-rug b{color:var(--warn)}
+.mood{font-size:13px;color:var(--muted)}
+.mood b{color:var(--fg);font-weight:500}
 
-.banner{border:1px solid var(--sell);background:var(--sell-bg);border-radius:6px;padding:10px 14px}
+/* buy spotlight */
+.spot{border:1px solid var(--buy);background:var(--buy-bg);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.spot.none{border-color:var(--line);background:var(--surface)}
+.spot h2{color:var(--buy)} .spot.none h2{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--buy);border-radius:6px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card:hover{border-color:var(--buy)}
+.card .hd{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.card .hd b{font:600 17px var(--display)}
+.card .sc{font:600 20px var(--mono);color:var(--buy)}
+.card ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.card li::before{content:"+ ";color:var(--buy);font-family:var(--mono)}
+.card .ft{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+
+.add{display:flex;gap:8px;flex-wrap:wrap}
+.add input{flex:1 1 240px;min-width:0}
+.results{display:flex;flex-direction:column;gap:4px}
+.results button{display:flex;justify-content:space-between;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.results button:hover{border-color:var(--accent)}
 
 .controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
@@ -65,62 +93,77 @@ select,input[type=text]{background:var(--surface);border:1px solid var(--line);b
 .tab[aria-selected=true]{color:var(--fg);border-color:var(--accent)}
 .tab .n{font:500 12px var(--mono);margin-left:6px;color:var(--muted)}
 .filters{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px}
-.filters label{display:flex;gap:6px;align-items:center}
-
-.add{position:relative;display:flex;gap:8px;flex-wrap:wrap}
-.add input{flex:1 1 240px;min-width:0}
-.results{display:flex;flex-direction:column;gap:4px}
-.results button{display:flex;justify-content:space-between;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
-.results button:hover{border-color:var(--accent)}
 
 .tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 table{border-collapse:collapse;width:100%}
-th,td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th,td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--raised)}
 th:first-child,td:first-child,th.l,td.l{text-align:left}
 tbody tr.row{cursor:pointer}
 tbody tr.row:hover{background:var(--raised)}
+tbody tr.s-buy{background:var(--buy-bg)}
+tbody tr.s-buy td:first-child{box-shadow:inset 4px 0 0 var(--buy)}
+tbody tr.s-sell td:first-child{box-shadow:inset 4px 0 0 var(--sell)}
+tbody tr.s-rug td:first-child,tbody tr.s-avoid td:first-child{box-shadow:inset 4px 0 0 var(--warn)}
 tbody tr:last-child td{border-bottom:0}
 .tok{display:flex;gap:10px;align-items:center;min-width:0}
 .tok img,.tok .ph{width:28px;height:28px;border-radius:50%;flex:none;background:var(--raised);object-fit:cover}
 .tok b{font-weight:600}
 .tok small{display:block;color:var(--muted);font-size:12px;max-width:14ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.up{color:var(--buy)} .down{color:var(--sell)}
 .pill{display:inline-block;font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px}
-.p-buy{background:var(--buy-bg);color:var(--buy)}
+.p-buy{background:var(--buy);color:var(--bg)}
 .p-sell{background:var(--sell-bg);color:var(--sell)}
-.p-watch{background:var(--mute-bg);color:var(--muted)}
-.p-avoid{background:var(--sell);color:var(--bg)}
+.p-hold{background:var(--mute-bg);color:var(--muted)}
+.p-rug{background:var(--sell);color:var(--bg)}
+.p-avoid{background:var(--warn-bg);color:var(--warn)}
 .p-high{background:var(--sell-bg);color:var(--sell)}
 .p-med{background:var(--warn-bg);color:var(--warn)}
 .p-low{background:var(--buy-bg);color:var(--buy)}
+.short{display:block;white-space:normal;font-size:12px;color:var(--muted);max-width:34ch;margin-top:4px;line-height:1.35}
 .star{background:none;border:0;font-size:17px;color:var(--muted);padding:2px 6px}
 .star.on{color:var(--warn)}
 .spark{vertical-align:middle;margin-left:8px}
 
 tr.detail td{white-space:normal;text-align:left;background:var(--raised);padding:16px}
-.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px 28px}
-.dgrid h3{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 8px}
-.dgrid ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.verdict{font-size:15px;line-height:1.5;max-width:80ch;margin:0 0 6px}
+.flip{color:var(--muted);max-width:80ch;margin:0 0 16px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 30px}
+.dgrid h3{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 10px}
+.dgrid ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
 .dgrid li{display:flex;gap:8px;align-items:baseline}
+.dgrid li .pts{margin-left:auto;padding-left:10px;font:12px var(--mono);color:var(--muted);flex:none}
 .sev{flex:none;width:8px;height:8px;border-radius:2px;background:var(--muted);transform:translateY(-1px)}
-.sev.high{background:var(--sell)} .sev.med{background:var(--warn)} .sev.low{background:var(--muted)} .sev.pos{background:var(--buy)} .sev.neg{background:var(--sell)}
-.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
+.sev.high{background:var(--sell)} .sev.med{background:var(--warn)} .sev.low{background:var(--muted)} .sev.pos{background:var(--buy)}
+.part{display:grid;grid-template-columns:1fr 46px;gap:2px 10px;align-items:center}
+.part .lbl{grid-column:1/-1;font-size:13px}
+.bar{position:relative;height:8px;background:var(--surface);border-radius:2px}
+.bar::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)}
+.bar i{position:absolute;top:0;bottom:0;border-radius:2px}
+.bar i.pos{left:50%;background:var(--buy)} .bar i.neg{right:50%;background:var(--sell)}
+.part .v{font:12px var(--mono);text-align:right}
+.total{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);display:flex;justify-content:space-between;font-weight:600}
+.press{display:flex;height:8px;border-radius:2px;overflow:hidden;background:var(--sell);margin:3px 0 2px}
+.press i{background:var(--buy)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--mono)}
-.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pos{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.links{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:16px}
 .links a{color:var(--accent)}
 .addr{font:12px var(--mono);color:var(--muted);word-break:break-all}
 .empty{padding:36px 16px;text-align:center;color:var(--muted)}
 
-details.method{border-top:1px solid var(--line);padding-top:14px;color:var(--muted);max-width:75ch}
-details.method summary{cursor:pointer;color:var(--fg);font-weight:500}
-details.method p{margin:10px 0 0}
+details.fold{border-top:1px solid var(--line);padding-top:14px;color:var(--muted);max-width:80ch}
+details.fold summary{cursor:pointer;color:var(--fg);font-weight:500}
+details.fold p{margin:10px 0 0}
+#log{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13px}
 
 @media (max-width:760px){
-  .c-m5,.c-liq,.c-mc{display:none}
+  .c-m5,.c-liq,.c-mc,.short{display:none}
   th,td{padding:9px 8px}
   h1{font-size:25px}
-  .tally b{font-size:21px}
+  .tally{gap:8px}
+  .tally b{font-size:20px}
+  .tally span{font-size:10px;letter-spacing:.03em}
 }
 </style>
 </head>
@@ -144,10 +187,17 @@ details.method p{margin:10px 0 0}
 
   <div class="banner" id="banner" hidden></div>
 
-  <section class="tally" aria-label="Summary">
-    <div class="t-buy"><b id="nBuy">0</b><span>Buy signals</span></div>
-    <div class="t-sell"><b id="nSell">0</b><span>Sell signals</span></div>
-    <div class="t-rug"><b id="nRug">0</b><span>High rug risk</span></div>
+  <section class="tally" aria-label="Verdicts, tap to filter">
+    <button class="t-buy" data-filter="buy" aria-pressed="false"><b id="nBuy">0</b><span>Buy</span><em></em></button>
+    <button class="t-hold" data-filter="hold" aria-pressed="false"><b id="nHold">0</b><span>Hold</span><em></em></button>
+    <button class="t-sell" data-filter="sell" aria-pressed="false"><b id="nSell">0</b><span>Sell</span><em></em></button>
+    <button class="t-rug" data-filter="rug" aria-pressed="false"><b id="nRug">0</b><span>Rug risk / avoid</span><em></em></button>
+  </section>
+  <div class="mood" id="mood"></div>
+
+  <section class="spot none" id="spot">
+    <h2>Buy signals right now</h2>
+    <div id="spotBody" class="muted">Waiting for the first prices.</div>
   </section>
 
   <form class="add" id="addForm" autocomplete="off">
@@ -162,34 +212,42 @@ details.method p{margin:10px 0 0}
       <button class="tab" role="tab" id="tabTrend" data-tab="trend" aria-selected="false">Trending scan<span class="n" id="cTrend">0</span></button>
     </div>
     <div class="filters">
+      <span id="filterNote" class="muted"></span>
       <label>Sort
         <select id="sort">
-          <option value="signal">Strongest signal</option>
+          <option value="signal">Best signal first</option>
           <option value="rug">Highest rug risk</option>
           <option value="h1">1h change</option>
           <option value="h24">24h change</option>
           <option value="liq">Liquidity</option>
         </select>
       </label>
-      <label><input type="checkbox" id="hideRisky"> Hide high rug risk</label>
     </div>
   </div>
 
   <div class="tablebox">
     <table>
       <thead><tr>
-        <th>Coin</th><th class="l">Signal</th><th class="l">Rug risk</th><th>Price</th><th class="c-m5">5m</th><th>1h</th><th>24h</th>
+        <th>Coin</th><th class="l">Verdict</th><th class="l">Rug risk</th><th>Price</th><th class="c-m5">5m</th><th>1h</th><th>24h</th>
         <th class="c-liq">Liquidity</th><th class="c-mc">Mkt cap</th><th aria-label="Watchlist"></th>
       </tr></thead>
       <tbody id="rows"><tr><td colspan="10" class="empty">Loading prices from DexScreener…</td></tr></tbody>
     </table>
   </div>
 
-  <details class="method">
-    <summary>How the signals and rug flags are worked out</summary>
-    <p><b>Signal score</b> runs from −100 to +100. It adds price momentum over 5 minutes, 1 hour and 6 hours, the share of buys among the last hour's trades, and whether the last hour's volume is above the 6-hour average. A coin already up more than 300% in 24 hours is marked down. A score of +35 or more with low rug risk is a buy signal, −30 or less is a sell signal, and anything with high rug risk or under $10k of liquidity is marked Avoid whatever the momentum.</p>
-    <p><b>Rug risk</b> adds up warning signs: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added: mint or freeze authority, holder concentration, and how much of the liquidity pool is locked. 60 or more is High, 30 to 59 is Elevated.</p>
-    <p>These are fixed rules applied to public market data. They cannot see insider wallets, coordinated dumps or news, and a low score does not make a coin safe. Treat the output as a screening aid and not as financial advice. Most meme coins go to zero.</p>
+  <details class="fold" id="logBox">
+    <summary>Verdict changes <span class="num muted" id="logN">0</span></summary>
+    <ul id="log"><li class="muted">Nothing has changed verdict since you opened the page.</li></ul>
+  </details>
+
+  <details class="fold">
+    <summary>How the verdicts are worked out</summary>
+    <p><b>Signal score</b> runs from −100 to +100 and is the sum of six parts: price change over 5 minutes (up to ±15), 1 hour (±36) and 6 hours (±20); buy pressure, meaning the share of the last hour's trades that were buys (±60, needs 20 or more trades); volume trend, meaning the last hour's volume against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours. Open any row to see each part's contribution.</p>
+    <p><b>Buy</b> needs a score of +35 or more and low rug risk. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between, including strong momentum held back by elevated rug risk. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
+    <p><b>Confidence</b> on a buy or sell counts how many timeframes agree, whether there are 100 or more trades in the hour, and whether liquidity is above $100k.</p>
+    <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added. 60 or more is High, 30 to 59 is Elevated.</p>
+    <p><b>Price impact</b> is an estimate from pooled liquidity of how far a buy of that size would move the price. Real slippage is usually worse.</p>
+    <p>These are fixed rules applied to public market data and have not been backtested. They cannot see insider wallets, coordinated dumps or news, and a low rug score does not make a coin safe. Treat this as a screening aid and not as financial advice. Most meme coins go to zero.</p>
   </details>
 </div>
 
@@ -203,12 +261,14 @@ const DEFAULT_WATCH = [
   "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"  // POPCAT
 ];
 const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const BUY_AT = 35, SELL_AT = -30, RUG_HIGH = 60, RUG_MED = 30;
 
 const S = {
   watch: load("mr.watch", DEFAULT_WATCH).filter(a => ADDR_RE.test(a)),
+  pos: load("mr.pos", {}), log: load("mr.log", []),
   trend: [], boosts: new Map(),
-  tokens: new Map(), hist: new Map(), rc: new Map(),
-  tab: load("mr.tab", "watch"), sort: load("mr.sort", "signal"), hideRisky: load("mr.hide", false),
+  tokens: new Map(), hist: new Map(), rc: new Map(), last: new Map(), A: new Map(),
+  tab: load("mr.tab", "watch"), sort: load("mr.sort", "signal"), filter: "all",
   interval: load("mr.int", 30), expanded: new Set(),
   lastOk: 0, lastDiscover: 0, error: "", rcFails: 0, rcOff: false, busy: false
 };
@@ -219,6 +279,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const n = x => (typeof x === "number" && isFinite(x)) ? x : 0;
+const sg = x => (x > 0 ? "+" : "") + x;
 
 async function getJSON(url){
   const r = await fetch(url, {headers:{Accept:"application/json"}});
@@ -227,23 +288,23 @@ async function getJSON(url){
 }
 
 /* ---------- scoring ---------- */
-function analyse(t, hist, rc, boost){
-  const p = t.pair, now = Date.now();
+function analyse(t, hist, rc, boost, pos){
+  const p = t.pair, now = Date.now(), px = Number(p.priceUsd) || 0;
   const liq = t.totalLiq, mc = n(p.marketCap) || n(p.fdv);
   const ch = p.priceChange || {}, tx = p.txns || {}, vol = p.volume || {};
   const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 36e5 : null;
   const flags = []; let rug = 0;
-  const flag = (sev, pts, text) => { flags.push({sev, text}); rug += pts; };
+  const flag = (sev, pts, text, short) => { flags.push({sev, pts, text, short: short || text}); rug += pts; };
 
   if(!liq){
-    if(/pump/i.test(p.dexId || "")) flag("med", 25, "Still on a launchpad bonding curve, so there is no pooled liquidity yet");
-    else flag("high", 45, "No liquidity reported for this pair");
-  } else if(liq < 5000) flag("high", 40, "Liquidity is only " + money(liq) + ", so a single sale can empty the pool");
+    if(/pump/i.test(p.dexId || "")) flag("med", 25, "Still on a launchpad bonding curve, so there is no pooled liquidity yet", "No pooled liquidity yet");
+    else flag("high", 45, "No liquidity reported for this pair", "No liquidity reported");
+  } else if(liq < 5000) flag("high", 40, "Liquidity is only " + money(liq) + ", so a single sale can empty the pool", "Only " + money(liq) + " of liquidity");
   else if(liq < 25000) flag("med", 15, "Thin liquidity (" + money(liq) + ")");
 
   if(liq && mc && mc < 2e7){
     const r = liq / mc;
-    if(r < 0.01) flag("high", 25, "Liquidity is " + (r*100).toFixed(2) + "% of market cap, so most holders could not exit");
+    if(r < 0.01) flag("high", 25, "Liquidity is " + (r*100).toFixed(2) + "% of market cap, so most holders could not exit", "Liquidity is " + (r*100).toFixed(2) + "% of market cap");
     else if(r < 0.03) flag("med", 12, "Liquidity is only " + (r*100).toFixed(1) + "% of market cap");
   }
   if(ageH != null){
@@ -251,18 +312,18 @@ function analyse(t, hist, rc, boost){
     else if(ageH < 24) flag("med", 15, "Pair is " + Math.round(ageH) + " hours old");
     else if(ageH < 72) flag("low", 5, "Pair is under three days old");
   }
-  if(n(ch.h1) <= -50 || n(ch.h24) <= -80) flag("high", 40, "Price has collapsed (" + pct(ch.h1) + " in 1h, " + pct(ch.h24) + " in 24h); a pull may already have happened");
+  if(n(ch.h1) <= -50 || n(ch.h24) <= -80) flag("high", 40, "Price has collapsed (" + pct(ch.h1) + " in 1h, " + pct(ch.h24) + " in 24h); a pull may already have happened", "Price has collapsed");
 
-  const b1 = n(tx.h1 && tx.h1.buys), s1 = n(tx.h1 && tx.h1.sells);
-  if(b1 >= 20 && s1 / b1 < 0.1) flag("high", 35, b1 + " buys and " + s1 + " sells in the last hour; holders may be unable to sell (honeypot pattern)");
+  const b1 = n(tx.h1 && tx.h1.buys), s1 = n(tx.h1 && tx.h1.sells), trades = b1 + s1;
+  if(b1 >= 20 && s1 / b1 < 0.1) flag("high", 35, b1 + " buys and " + s1 + " sells in the last hour; holders may be unable to sell (honeypot pattern)", "Almost no sells: honeypot pattern");
 
-  if(liq && liq < 1e5 && n(vol.h24) / liq > 15) flag("med", 12, "24h volume is " + Math.round(n(vol.h24)/liq) + "× liquidity, which can indicate wash trading");
+  if(liq && liq < 1e5 && n(vol.h24) / liq > 15) flag("med", 12, "24h volume is " + Math.round(n(vol.h24)/liq) + "× liquidity, which can indicate wash trading", "Volume far above liquidity");
 
   const info = p.info || {};
   if(!(info.websites && info.websites.length) && !(info.socials && info.socials.length)) flag("med", 12, "No website or social accounts listed");
 
   if(hist && hist.peakLiq && liq && liq < hist.peakLiq * 0.7)
-    flag("high", 40, "Liquidity has dropped " + Math.round((1 - liq/hist.peakLiq)*100) + "% since this page started tracking it");
+    flag("high", 40, "Liquidity has dropped " + Math.round((1 - liq/hist.peakLiq)*100) + "% since this page started tracking it", "Liquidity is draining");
 
   if(boost >= 100 && ageH != null && ageH < 24) flag("low", 8, "Heavy paid promotion on DexScreener for a new pair");
 
@@ -274,43 +335,98 @@ function analyse(t, hist, rc, boost){
     (rc.risks || []).forEach(r => {
       const lvl = String(r.level || "").toLowerCase();
       const text = "On-chain: " + r.name + (r.description ? ". " + r.description : "");
-      if(lvl === "danger"){ if(dangers++ < 3) flag("high", 30, text); }
-      else if(lvl === "warn"){ if(warns++ < 4) flag("low", 6, text); }
+      if(lvl === "danger"){ if(dangers++ < 3) flag("high", 30, text, "On-chain: " + r.name); }
+      else if(lvl === "warn"){ if(warns++ < 4) flag("low", 6, text, "On-chain: " + r.name); }
     });
     if(typeof rc.lpLockedPct === "number" && rc.lpLockedPct < 50 && mc && mc < 2e7)
       flag("med", 15, "Only " + rc.lpLockedPct.toFixed(0) + "% of the liquidity pool is locked");
   } else if(rc && !rc.ok) onchain = "unavailable";
 
   rug = Math.min(100, Math.round(rug));
-  const rugLevel = rug >= 60 ? "high" : rug >= 30 ? "med" : "low";
+  const rugLevel = rug >= RUG_HIGH ? "high" : rug >= RUG_MED ? "med" : "low";
+  flags.sort((a, b) => b.pts - a.pts);
 
-  /* momentum signal */
-  const why = []; let score = 0;
-  const add = (pts, text) => { score += pts; if(Math.abs(pts) >= 4) why.push({pts, text}); };
-  add(clamp(n(ch.m5), -10, 10) * 1.5, "Price " + pct(ch.m5) + " in 5 minutes");
-  add(clamp(n(ch.h1), -30, 30) * 1.2, "Price " + pct(ch.h1) + " in 1 hour");
-  add(clamp(n(ch.h6), -50, 50) * 0.4, "Price " + pct(ch.h6) + " in 6 hours");
-  if(b1 + s1 >= 20){
-    const share = b1 / (b1 + s1);
-    add((share - 0.5) * 120, Math.round(share*100) + "% of the last hour's " + (b1+s1) + " trades were buys");
+  /* signal score, kept as named parts so the page can show the working */
+  const parts = [];
+  const part = (label, pts, max, text) => parts.push({label, pts: Math.round(pts), max, text});
+  part("Price, 5 minutes", clamp(n(ch.m5), -10, 10) * 1.5, 15, "Price " + pct(ch.m5) + " in 5 minutes");
+  part("Price, 1 hour", clamp(n(ch.h1), -30, 30) * 1.2, 36, "Price " + pct(ch.h1) + " in the last hour");
+  part("Price, 6 hours", clamp(n(ch.h6), -50, 50) * 0.4, 20, "Price " + pct(ch.h6) + " over 6 hours");
+  const share = trades ? b1 / trades : 0.5;
+  if(trades >= 20) part("Buy pressure", (share - 0.5) * 120, 60, Math.round(share*100) + "% of the last hour's " + trades + " trades were buys");
+  else part("Buy pressure", 0, 60, "Only " + trades + " trades in the last hour, too few to read");
+  let accel = null;
+  if(n(vol.h6) > 0){ accel = n(vol.h1) / (n(vol.h6) / 6); part("Volume trend", clamp((accel - 1) * 15, -15, 20), 20, "Last hour's volume is " + accel.toFixed(1) + "× the 6-hour average"); }
+  else part("Volume trend", 0, 20, "No volume in the last 6 hours");
+  if(n(ch.h24) > 300) part("Overextended", -20, 20, "Already up " + pct(ch.h24) + " in 24 hours, so late entries carry more downside");
+  const score = clamp(parts.reduce((s, x) => s + x.pts, 0), -100, 100);
+  const pros = parts.filter(x => x.pts >= 4).sort((a, b) => b.pts - a.pts);
+  const cons = parts.filter(x => x.pts <= -4).sort((a, b) => a.pts - b.pts);
+
+  /* your own exit rules, if you marked an entry */
+  let position = null, stop = "";
+  if(pos && pos.entry > 0 && px > 0){
+    const pnl = px / pos.entry - 1, peak = Math.max(pos.peak || pos.entry, px);
+    position = {entry: pos.entry, at: pos.at, pnl, peak, offPeak: px / peak - 1};
+    if(pnl <= -0.25) stop = "Price is " + pct(pnl*100) + " against the entry you marked, past the 25% stop-loss";
+    else if(peak >= pos.entry * 1.3 && px <= peak * 0.65) stop = "Price has fallen " + pct((px/peak - 1)*100) + " from its peak since you bought, past the 35% trailing stop";
   }
-  if(n(vol.h6) > 0){
-    const accel = n(vol.h1) / (n(vol.h6) / 6);
-    add(clamp((accel - 1) * 15, -15, 20), "Last hour's volume is " + accel.toFixed(1) + "× the 6-hour average");
-  }
-  if(n(ch.h24) > 300) add(-20, "Already up " + pct(ch.h24) + " in 24 hours, so late entries carry more downside");
-  score = Math.round(clamp(score, -100, 100));
-  why.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
 
   let signal;
-  if(rugLevel === "high" || (liq && liq < 10000) || !liq) signal = "avoid";
-  else if(score <= -30) signal = "sell";
-  else if(score >= 35 && rugLevel === "low") signal = "buy";
-  else signal = "watch";
-  if(signal === "watch" && score >= 35) why.unshift({pts:0, text:"Momentum is strong but rug risk is elevated, so this stays on watch"});
-  if(signal === "avoid") why.unshift({pts:-1, text:"Marked Avoid on rug risk or liquidity, whatever the momentum"});
+  if(rugLevel === "high") signal = "rug";
+  else if(!liq || liq < 10000) signal = "avoid";
+  else if(stop || score <= SELL_AT) signal = "sell";
+  else if(score >= BUY_AT && rugLevel === "low") signal = "buy";
+  else signal = "hold";
 
-  return {score, signal, why, rug, rugLevel, flags, onchain, ageH, liq, mc};
+  /* confidence */
+  let conf = "";
+  if(signal === "buy" || signal === "sell"){
+    const dir = signal === "buy" ? 1 : -1;
+    let c = [ch.m5, ch.h1, ch.h6].filter(x => n(x) * dir > 0).length + (trades >= 100 ? 1 : 0) + (liq >= 1e5 ? 1 : 0);
+    if(stop) c += 2;
+    conf = c >= 5 ? "Strong" : c >= 3 ? "Moderate" : "Weak";
+  }
+
+  /* plain-language verdict, short reason and what would change it */
+  const top = flags[0], hi = flags.filter(f => f.sev === "high");
+  let verdict, short, flip;
+  if(signal === "rug"){
+    verdict = "Rug risk. " + (hi.length ? hi.slice(0, 2).map(f => f.text).join(". ") + "." : flags.slice(0, 3).map(f => f.text).join(". ") + ".") +
+      " " + flags.length + " warning sign" + (flags.length === 1 ? "" : "s") + " add up to a rug score of " + rug + ", which overrides the momentum score of " + sg(score) + ".";
+    short = flags.slice(0, 2).map(f => f.short).join("; ");
+    flip = "Leaves this category only if the rug score falls below " + RUG_HIGH + " (now " + rug + ").";
+  } else if(signal === "avoid"){
+    verdict = "Avoid. " + (liq ? "Only " + money(liq) + " of liquidity, which is too thin to get in and out without moving the price against yourself." : "There is no pooled liquidity to trade against yet.") + " Momentum score is " + sg(score) + ".";
+    short = liq ? "Only " + money(liq) + " of liquidity" : "No pooled liquidity yet";
+    flip = "Gets a normal verdict once liquidity is above $10k.";
+  } else if(signal === "buy"){
+    verdict = "Buy signal, " + conf.toLowerCase() + " confidence. " + pros.slice(0, 3).map(x => x.text).join(". ") + ". Liquidity is " + money(liq) +
+      " and rug risk is low (" + rug + ")." + (cons.length ? " Against it: " + cons[0].text.charAt(0).toLowerCase() + cons[0].text.slice(1) + "." : "");
+    short = pros.slice(0, 2).map(x => x.text).join("; ");
+    flip = "Drops to hold if the score falls below " + sg(BUY_AT) + " (now " + sg(score) + ") or the rug score reaches " + RUG_MED + " (now " + rug + "). Turns to sell at " + SELL_AT + ".";
+  } else if(signal === "sell"){
+    verdict = "Sell signal, " + conf.toLowerCase() + " confidence. " + (stop ? stop + ". " : "") + (cons.length ? cons.slice(0, 3).map(x => x.text).join(". ") + "." : "Momentum score is " + sg(score) + ".");
+    short = stop ? (position.pnl <= -0.25 ? "Stop-loss hit: " + pct(position.pnl*100) + " on your entry" : "Trailing stop hit") : cons.slice(0, 2).map(x => x.text).join("; ");
+    flip = stop ? "Your exit rule stays triggered until the price recovers or you clear the entry." : "Returns to hold if the score rises above " + SELL_AT + " (now " + sg(score) + ").";
+  } else {
+    if(score >= BUY_AT){
+      verdict = "Hold. Momentum is strong enough for a buy (" + sg(score) + "), but rug risk is elevated at " + rug + (top ? ": " + top.text.charAt(0).toLowerCase() + top.text.slice(1) : "") + ". It stays on hold until that clears.";
+      short = "Buy-level momentum, held back by rug risk" + (top ? ": " + top.short : "");
+      flip = "Becomes a buy if the rug score falls below " + RUG_MED + " (now " + rug + ") while the score stays at " + sg(BUY_AT) + " or more.";
+    } else {
+      const lean = score >= 15 ? "leaning positive" : score <= -12 ? "leaning negative" : "no clear direction";
+      verdict = "Hold, " + lean + ". The score of " + sg(score) + " sits between the sell line (" + SELL_AT + ") and the buy line (" + sg(BUY_AT) + ")." +
+        (pros.length ? " For: " + pros[0].text.charAt(0).toLowerCase() + pros[0].text.slice(1) + "." : "") + (cons.length ? " Against: " + cons[0].text.charAt(0).toLowerCase() + cons[0].text.slice(1) + "." : "");
+      short = "Score " + sg(score) + ", " + lean;
+      flip = "Needs " + (BUY_AT - score) + " more points for a buy" + (rugLevel === "med" ? " and a rug score under " + RUG_MED + " (now " + rug + ")" : "") + ", or " + (score - SELL_AT) + " fewer for a sell.";
+    }
+  }
+  if(position && position.pnl >= 1 && signal !== "sell") verdict += " You are up " + pct(position.pnl*100) + " on the entry you marked.";
+
+  const impact = x => liq ? x / (liq / 2 + x) * 100 : null;
+  return {score, parts, pros, cons, signal, conf, verdict, short, flip, rug, rugLevel, flags, onchain, ageH, liq, mc, share, trades, b1, s1, accel,
+    impact100: impact(100), impact1k: impact(1000), position, px};
 }
 
 /* ---------- formatting ---------- */
@@ -330,6 +446,7 @@ function price(x){
 function pct(x){ if(typeof x !== "number" || !isFinite(x)) return "—"; return (x > 0 ? "+" : "") + (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)) + "%"; }
 function pctCell(x, cls){ const c = typeof x !== "number" ? "muted" : x > 0 ? "up" : x < 0 ? "down" : "muted"; return '<td class="num ' + c + (cls ? " " + cls : "") + '">' + pct(x) + "</td>"; }
 function age(h){ if(h == null) return "unknown"; if(h < 1) return Math.max(1, Math.round(h*60)) + " min"; if(h < 48) return Math.round(h) + " h"; if(h < 24*60) return Math.round(h/24) + " days"; return (h/24/365).toFixed(1) + " yr"; }
+function ago(t){ const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "just now" : m < 60 ? m + " min" : m < 1440 ? Math.round(m/60) + " h" : Math.round(m/1440) + " d"; }
 function spark(hist){
   if(!hist || hist.pts.length < 3) return "";
   const v = hist.pts.map(p => p.price), lo = Math.min(...v), hi = Math.max(...v), w = 56, h = 18;
@@ -337,9 +454,10 @@ function spark(hist){
   const col = v[v.length-1] >= v[0] ? "var(--buy)" : "var(--sell)";
   return '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '" aria-hidden="true"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.5"/></svg>';
 }
-const SIG = {buy:["p-buy","Buy signal"], sell:["p-sell","Sell signal"], watch:["p-watch","Watch"], avoid:["p-avoid","Avoid"]};
+const SIG = {buy:["p-buy","Buy"], sell:["p-sell","Sell"], hold:["p-hold","Hold"], rug:["p-rug","Rug risk"], avoid:["p-avoid","Avoid"]};
 const RUG = {high:["p-high","High"], med:["p-med","Elevated"], low:["p-low","Low"]};
 const safeUrl = u => (typeof u === "string" && /^https:\/\//.test(u)) ? u : "";
+const group = s => s === "avoid" ? "rug" : s;
 
 /* ---------- data ---------- */
 async function discover(){
@@ -371,23 +489,26 @@ async function loadPrices(){
       if(!by.has(a)) by.set(a, []); by.get(a).push(p);
     });
   });
-  const now = Date.now();
+  const now = Date.now(); let posDirty = false;
   by.forEach((pairs, a) => {
     pairs.sort((x, y) => n(y.liquidity && y.liquidity.usd) - n(x.liquidity && x.liquidity.usd));
     const totalLiq = pairs.reduce((s, p) => s + n(p.liquidity && p.liquidity.usd), 0);
     S.tokens.set(a, {addr:a, pair:pairs[0], totalLiq, nPairs:pairs.length});
+    const px = Number(pairs[0].priceUsd) || 0;
     const h = S.hist.get(a) || {pts:[], peakLiq:0};
-    h.pts.push({t:now, price:Number(pairs[0].priceUsd) || 0}); if(h.pts.length > 120) h.pts.shift();
+    h.pts.push({t:now, price:px}); if(h.pts.length > 120) h.pts.shift();
     h.peakLiq = Math.max(h.peakLiq, totalLiq);
     S.hist.set(a, h);
+    const ps = S.pos[a];
+    if(ps && px > (ps.peak || ps.entry)){ ps.peak = px; posDirty = true; }
   });
+  if(posDirty) save("mr.pos", S.pos);
 }
 
 let rcRunning = false;
 async function rugcheckQueue(){
   if(rcRunning || S.rcOff) return; rcRunning = true;
-  const order = [...S.watch, ...S.trend];
-  for(const a of order){
+  for(const a of [...S.watch, ...S.trend]){
     if(S.rcOff) break;
     const c = S.rc.get(a);
     if(c && Date.now() - c.at < 15*60e3) continue;
@@ -397,7 +518,7 @@ async function rugcheckQueue(){
       S.rcFails = 0;
     }catch(e){
       S.rc.set(a, {ok:false, at:Date.now()});
-      if(++S.rcFails >= 3){ S.rcOff = true; }
+      if(++S.rcFails >= 3) S.rcOff = true;
     }
     render();
     await new Promise(r => setTimeout(r, 400));
@@ -419,48 +540,67 @@ async function tick(force){
 }
 
 /* ---------- render ---------- */
-function rowsFor(tab){
-  const ids = tab === "watch" ? S.watch : S.trend;
-  return ids.map(a => {
-    const t = S.tokens.get(a);
-    return t ? {t, a: analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0)} : {addr:a, missing:true};
+function recompute(){
+  S.A = new Map(); let changed = false;
+  [...new Set([...S.watch, ...S.trend])].forEach(a => {
+    const t = S.tokens.get(a); if(!t) return;
+    const x = analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0, S.pos[a]);
+    S.A.set(a, x);
+    const prev = S.last.get(a);
+    if(!prev) S.last.set(a, {signal:x.signal, since:Date.now(), oc:x.onchain});
+    else if(prev.oc === "pending" && x.onchain !== "pending"){ /* first on-chain result is not a market change, so it is not logged */
+      S.last.set(a, {signal:x.signal, since:prev.signal === x.signal ? prev.since : Date.now(), oc:x.onchain});
+    }
+    else if(prev.signal !== x.signal){
+      S.log.unshift({t:Date.now(), a, sym:(t.pair.baseToken || {}).symbol || "?", from:prev.signal, to:x.signal, why:x.short});
+      S.log = S.log.slice(0, 40); changed = true;
+      S.last.set(a, {signal:x.signal, since:Date.now(), oc:x.onchain});
+    }
   });
+  if(changed) save("mr.log", S.log);
 }
 function render(){
-  const all = new Map();
-  [...S.watch, ...S.trend].forEach(a => { const t = S.tokens.get(a); if(t && !all.has(a)) all.set(a, analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0)); });
-  let nb = 0, ns = 0, nr = 0; all.forEach(x => { if(x.signal === "buy") nb++; if(x.signal === "sell") ns++; if(x.rugLevel === "high") nr++; });
-  $("nBuy").textContent = nb; $("nSell").textContent = ns; $("nRug").textContent = nr;
+  recompute();
+  const cnt = {buy:0, hold:0, sell:0, rug:0}; let up = 0, tot = 0;
+  S.A.forEach((x, a) => { cnt[group(x.signal)]++; const h1 = S.tokens.get(a).pair.priceChange; if(h1 && typeof h1.h1 === "number"){ tot++; if(h1.h1 > 0) up++; } });
+  $("nBuy").textContent = cnt.buy; $("nHold").textContent = cnt.hold; $("nSell").textContent = cnt.sell; $("nRug").textContent = cnt.rug;
+  document.querySelectorAll(".tally button").forEach(b => { const on = S.filter === b.dataset.filter; b.setAttribute("aria-pressed", on); b.querySelector("em").textContent = on ? "Showing only these" : ""; });
+  $("mood").innerHTML = tot ? "<b>" + up + " of " + tot + "</b> tracked coins are up over the last hour. Tap a tally to filter the table, tap a row for the full reasoning." : "";
   $("cWatch").textContent = S.watch.length; $("cTrend").textContent = S.trend.length;
   $("tabWatch").setAttribute("aria-selected", S.tab === "watch"); $("tabTrend").setAttribute("aria-selected", S.tab === "trend");
   const b = $("banner"); b.hidden = !S.error; b.textContent = S.error;
+  renderSpot(); renderLog();
 
-  let rows = rowsFor(S.tab);
-  const loaded = rows.filter(r => !r.missing), missing = rows.filter(r => r.missing);
-  let shown = S.hideRisky ? loaded.filter(r => r.a.rugLevel !== "high") : loaded;
+  const ids = S.tab === "watch" ? S.watch : S.trend;
+  const loaded = ids.filter(a => S.A.has(a)).map(a => ({t:S.tokens.get(a), a:S.A.get(a)}));
+  const missing = ids.filter(a => !S.A.has(a));
+  const shown = S.filter === "all" ? loaded : loaded.filter(r => group(r.a.signal) === S.filter);
+  $("filterNote").textContent = S.filter === "all" ? "" : "Showing " + shown.length + " of " + loaded.length;
   const key = {
-    signal: r => r.a.signal === "avoid" ? -1000 + r.a.score : Math.abs(r.a.score) + (r.a.signal === "buy" || r.a.signal === "sell" ? 200 : 0),
+    signal: r => ({buy:4000 + r.a.score, sell:3000 - r.a.score, hold:2000 + r.a.score, avoid:1000, rug:r.a.rug})[r.a.signal],
     rug: r => r.a.rug, h1: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h1),
     h24: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h24), liq: r => r.t.totalLiq
   }[S.sort] || (r => 0);
   shown.sort((x, y) => key(y) - key(x));
 
   const body = $("rows");
-  if(!shown.length && !missing.length){
+  if(!shown.length && !(missing.length && S.filter === "all")){
     body.innerHTML = '<tr><td colspan="10" class="empty">' + (
       !S.lastOk ? (S.error ? "No data yet." : "Loading prices from DexScreener…")
+      : loaded.length ? "No coins in this tab with that verdict right now. Tap the tally again to show everything."
       : S.tab === "watch" ? "Your watchlist is empty. Add a coin above, or star one in the trending scan."
-      : loaded.length ? "Every coin in this scan is high rug risk. Untick the filter to see them." : "No trending Solana coins found right now.") + "</td></tr>";
+      : "No trending Solana coins found right now.") + "</td></tr>";
     return;
   }
   let h = "";
   shown.forEach(({t, a}) => {
     const p = t.pair, ch = p.priceChange || {}, bt = p.baseToken || {}, on = S.watch.includes(t.addr);
     const img = safeUrl(p.info && p.info.imageUrl);
-    h += '<tr class="row" data-a="' + esc(t.addr) + '" tabindex="0" aria-expanded="' + S.expanded.has(t.addr) + '">' +
+    h += '<tr class="row s-' + a.signal + '" data-a="' + esc(t.addr) + '" tabindex="0" aria-expanded="' + S.expanded.has(t.addr) + '">' +
       '<td><div class="tok">' + (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="ph"></span>') +
       "<div><b>" + esc(bt.symbol || "?") + "</b><small>" + esc(bt.name || "") + "</small></div></div></td>" +
-      '<td class="l"><span class="pill ' + SIG[a.signal][0] + '">' + SIG[a.signal][1] + '</span> <span class="num muted">' + (a.score > 0 ? "+" : "") + a.score + "</span></td>" +
+      '<td class="l"><span class="pill ' + SIG[a.signal][0] + '">' + SIG[a.signal][1] + '</span> <span class="num muted">' + sg(a.score) + (a.conf ? " · " + a.conf.toLowerCase() : "") + "</span>" +
+        '<span class="short">' + esc(a.short) + "</span></td>" +
       '<td class="l"><span class="pill ' + RUG[a.rugLevel][0] + '">' + RUG[a.rugLevel][1] + '</span> <span class="num muted">' + a.rug + "</span></td>" +
       '<td class="num">' + price(p.priceUsd) + spark(S.hist.get(t.addr)) + "</td>" +
       pctCell(ch.m5, "c-m5") + pctCell(ch.h1) + pctCell(ch.h24) +
@@ -469,28 +609,79 @@ function render(){
       '<td><button class="star' + (on ? " on" : "") + '" data-star="' + esc(t.addr) + '" title="' + (on ? "Remove from watchlist" : "Add to watchlist") + '" aria-label="' + (on ? "Remove from watchlist" : "Add to watchlist") + '">' + (on ? "★" : "☆") + "</button></td></tr>";
     if(S.expanded.has(t.addr)) h += detail(t, a);
   });
-  missing.forEach(m => {
-    h += '<tr><td colspan="9" class="muted" style="text-align:left"><span class="addr">' + esc(m.addr) + "</span> " + (S.lastOk ? "has no trading pair on DexScreener" : "loading…") +
-      '</td><td><button class="star on" data-star="' + esc(m.addr) + '" aria-label="Remove from watchlist">★</button></td></tr>';
+  if(S.filter === "all") missing.forEach(m => {
+    h += '<tr><td colspan="9" class="muted" style="text-align:left"><span class="addr">' + esc(m) + "</span> " + (S.lastOk ? "has no trading pair on DexScreener" : "loading…") +
+      '</td><td><button class="star on" data-star="' + esc(m) + '" aria-label="Remove from watchlist">★</button></td></tr>';
   });
   body.innerHTML = h;
 }
+
+function renderSpot(){
+  const box = $("spot"), body = $("spotBody");
+  if(!S.A.size){ return; }
+  const buys = [...S.A].filter(([, x]) => x.signal === "buy").sort((p, q) => q[1].score - p[1].score);
+  box.classList.toggle("none", !buys.length);
+  if(!buys.length){
+    const holds = [...S.A].filter(([, x]) => x.signal === "hold").sort((p, q) => q[1].score - p[1].score);
+    let msg = "No coin meets the buy rules at the moment (score of " + sg(BUY_AT) + " or more with low rug risk).";
+    if(holds.length){
+      const [a, x] = holds[0], sym = (S.tokens.get(a).pair.baseToken || {}).symbol || "?";
+      msg += " Closest is " + esc(sym) + " at " + sg(x.score) + (x.score >= BUY_AT ? ", held back by elevated rug risk (" + x.rug + ")." : ", " + (BUY_AT - x.score) + " points short.");
+    }
+    body.className = "muted"; body.innerHTML = msg; return;
+  }
+  body.className = "cards";
+  body.innerHTML = buys.slice(0, 6).map(([a, x]) => {
+    const t = S.tokens.get(a), p = t.pair, ch = p.priceChange || {}, since = S.last.get(a);
+    return '<button class="card" data-go="' + esc(a) + '"><div class="hd"><b>' + esc((p.baseToken || {}).symbol || "?") + '</b><span class="sc">' + sg(x.score) + "</span></div>" +
+      '<div class="num">' + price(p.priceUsd) + ' <span class="' + (n(ch.h1) >= 0 ? "up" : "down") + '">' + pct(ch.h1) + " 1h</span></div>" +
+      "<ul>" + x.pros.slice(0, 3).map(r => "<li>" + esc(r.text) + "</li>").join("") + "</ul>" +
+      '<div class="ft"><span>' + x.conf + " confidence</span><span>Rug " + x.rug + "</span><span>Liquidity " + money(x.liq) + "</span>" +
+      (since ? "<span>Buy for " + ago(since.since).replace("just now", "under a minute") + "</span>" : "") + "</div></button>";
+  }).join("");
+}
+
+function renderLog(){
+  $("logN").textContent = S.log.length;
+  if(!S.log.length) return;
+  $("log").innerHTML = S.log.map(e => '<li><span class="num muted">' + esc(new Date(e.t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) + "</span> <b>" + esc(e.sym) + "</b> " +
+    esc((SIG[e.from] || ["", e.from])[1]) + " → <b>" + esc((SIG[e.to] || ["", e.to])[1]) + "</b>" + (e.why ? ' <span class="muted">(' + esc(e.why) + ")</span>" : "") + "</li>").join("");
+}
+
+function bar(pts, max){
+  const w = Math.min(50, Math.abs(pts) / max * 50).toFixed(1);
+  return '<div class="bar">' + (pts ? '<i class="' + (pts > 0 ? "pos" : "neg") + '" style="width:' + w + '%"></i>' : "") + "</div>";
+}
+function press(label, tx){
+  const bb = n(tx && tx.buys), ss = n(tx && tx.sells), tot = bb + ss;
+  return "<dt>" + label + "</dt><dd>" + (tot ? '<div class="press"><i style="width:' + (bb/tot*100).toFixed(0) + '%"></i></div>' + bb + " buys / " + ss + " sells" : "no trades") + "</dd>";
+}
 function detail(t, a){
-  const p = t.pair, tx = (p.txns && p.txns.h1) || {}, vol = p.volume || {};
-  const why = a.why.length ? a.why.map(w => '<li><span class="sev ' + (w.pts > 0 ? "pos" : w.pts < 0 ? "neg" : "low") + '"></span><span>' + esc(w.text) + "</span></li>").join("") : '<li><span class="sev low"></span><span>No strong move in either direction</span></li>';
-  const flags = a.flags.length ? a.flags.map(f => '<li><span class="sev ' + f.sev + '"></span><span>' + esc(f.text) + "</span></li>").join("") : '<li><span class="sev pos"></span><span>No warning signs in the market data</span></li>';
+  const p = t.pair, tx = p.txns || {}, vol = p.volume || {}, ch = p.priceChange || {}, since = S.last.get(t.addr);
+  const parts = a.parts.map(x => '<div class="part"><span class="lbl">' + esc(x.text) + "</span>" + bar(x.pts, x.max) + '<span class="v ' + (x.pts > 0 ? "up" : x.pts < 0 ? "down" : "muted") + '">' + sg(x.pts) + "</span></div>").join("");
+  const flags = a.flags.length ? a.flags.map(f => '<li><span class="sev ' + f.sev + '"></span><span>' + esc(f.text) + '</span><span class="pts">+' + f.pts + "</span></li>").join("") : '<li><span class="sev pos"></span><span>No warning signs in the market data</span></li>';
   const oc = a.onchain === "ok" ? "" : '<li><span class="sev low"></span><span class="muted">' + (a.onchain === "pending" && !S.rcOff ? "On-chain check from RugCheck still loading" : "On-chain check from RugCheck unavailable, so mint authority, holder concentration and LP lock were not checked") + "</span></li>";
-  const dex = safeUrl(p.url);
-  return '<tr class="detail"><td colspan="10"><div class="dgrid">' +
-    "<div><h3>Why this signal</h3><ul>" + why + "</ul></div>" +
-    "<div><h3>Rug-pull checks</h3><ul>" + flags + oc + "</ul></div>" +
+  const dex = safeUrl(p.url), ps = a.position;
+  const posHtml = ps
+    ? '<dl class="kv"><dt>Entry</dt><dd>' + price(ps.entry) + " (" + ago(ps.at).replace(/^(?!just)(.*)$/, "$1 ago") + ")</dd>"<dt>Now</dt><dd class="' + (ps.pnl >= 0 ? "up" : "down") + '">' + pct(ps.pnl*100) + "</dd><dt>Peak since</dt><dd>" + price(ps.peak) + " (" + pct(ps.offPeak*100) + ' now)</dd><dt>Stop-loss at</dt><dd>' + price(ps.entry*0.75) + '</dd></dl><button class="btn small" data-clear="' + esc(t.addr) + '">Clear entry</button>'
+    : '<span class="muted">Mark the price you bought at and the page applies two exit rules: a 25% stop-loss and a 35% trailing stop once you are up 30%.</span><button class="btn small" data-enter="' + esc(t.addr) + '">Mark entry at ' + price(p.priceUsd) + "</button>";
+  return '<tr class="detail"><td colspan="10">' +
+    '<p class="verdict">' + esc(a.verdict) + "</p>" +
+    '<p class="flip">' + (since ? "This verdict has held for " + ago(since.since).replace("just now", "under a minute") + " of this session. " : "") + esc(a.flip) + "</p>" +
+    '<div class="dgrid">' +
+    "<div><h3>Signal score, part by part</h3>" + parts + '<div class="total"><span>Score</span><span class="num">' + sg(a.score) + "</span></div></div>" +
+    "<div><h3>Rug-pull checks</h3><ul>" + flags + oc + '</ul><div class="total"><span>Rug score</span><span class="num">' + a.rug + " · " + RUG[a.rugLevel][1] + "</span></div></div>" +
     '<div><h3>Market</h3><dl class="kv">' +
       "<dt>Liquidity</dt><dd>" + money(t.totalLiq) + (t.nPairs > 1 ? " across " + t.nPairs + " pools" : "") + "</dd>" +
       "<dt>Market cap</dt><dd>" + money(a.mc) + "</dd>" +
-      "<dt>Volume 24h</dt><dd>" + money(vol.h24) + "</dd>" +
-      "<dt>Trades 1h</dt><dd>" + n(tx.buys) + " buys / " + n(tx.sells) + " sells</dd>" +
+      "<dt>Volume 24h</dt><dd>" + money(vol.h24) + (a.liq ? " (" + (n(vol.h24)/a.liq).toFixed(1) + "× liquidity)" : "") + "</dd>" +
+      "<dt>Price 6h</dt><dd>" + pct(ch.h6) + "</dd>" +
+      press("Trades 1h", tx.h1) + press("Trades 24h", tx.h24) +
+      "<dt>Impact, $100 buy</dt><dd>" + (a.impact100 == null ? "—" : "~" + a.impact100.toFixed(a.impact100 < 1 ? 2 : 1) + "%") + "</dd>" +
+      "<dt>Impact, $1k buy</dt><dd>" + (a.impact1k == null ? "—" : "~" + a.impact1k.toFixed(a.impact1k < 1 ? 2 : 1) + "%") + "</dd>" +
       "<dt>Pair age</dt><dd>" + age(a.ageH) + "</dd>" +
-      "<dt>Exchange</dt><dd>" + esc(p.dexId || "—") + "</dd></dl></div></div>" +
+      "<dt>Exchange</dt><dd>" + esc(p.dexId || "—") + "</dd></dl></div>" +
+    '<div><h3>Your position</h3><div class="pos">' + posHtml + "</div></div></div>" +
     '<div class="links">' + (dex ? '<a href="' + esc(dex) + '" target="_blank" rel="noopener noreferrer">Chart on DexScreener</a>' : "") +
     '<a href="https://rugcheck.xyz/tokens/' + esc(t.addr) + '" target="_blank" rel="noopener noreferrer">Full RugCheck report</a></div>' +
     '<div class="addr" style="margin-top:8px">' + esc(t.addr) + "</div></td></tr>";
@@ -504,18 +695,27 @@ function toggleWatch(a){
   if(i < 0 && !S.tokens.has(a)) tick(false);
 }
 $("rows").addEventListener("click", e => {
-  const st = e.target.closest("[data-star]");
-  if(st){ toggleWatch(st.dataset.star); return; }
-  if(e.target.closest("a")) return;
+  const st = e.target.closest("[data-star]"); if(st){ toggleWatch(st.dataset.star); return; }
+  const en = e.target.closest("[data-enter]");
+  if(en){ const t = S.tokens.get(en.dataset.enter), px = t && Number(t.pair.priceUsd); if(px > 0){ S.pos[en.dataset.enter] = {entry:px, at:Date.now(), peak:px}; save("mr.pos", S.pos); if(!S.watch.includes(en.dataset.enter)){ S.watch.unshift(en.dataset.enter); save("mr.watch", S.watch); } render(); } return; }
+  const cl = e.target.closest("[data-clear]"); if(cl){ delete S.pos[cl.dataset.clear]; save("mr.pos", S.pos); render(); return; }
+  if(e.target.closest("a") || e.target.closest("tr.detail")) return;
   const r = e.target.closest("tr.row"); if(!r) return;
   const a = r.dataset.a; S.expanded.has(a) ? S.expanded.delete(a) : S.expanded.add(a); render();
 });
 $("rows").addEventListener("keydown", e => {
   if((e.key === "Enter" || e.key === " ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }
 });
+$("spot").addEventListener("click", e => {
+  const c = e.target.closest("[data-go]"); if(!c) return;
+  const a = c.dataset.go; S.filter = "all"; S.tab = S.watch.includes(a) ? "watch" : "trend"; S.expanded.add(a); render();
+  const row = [...document.querySelectorAll("tr.row")].find(r => r.dataset.a === a);
+  if(row) row.scrollIntoView({behavior:"smooth", block:"start"});
+});
+document.querySelectorAll(".tally button").forEach(b => b.addEventListener("click", () => { S.filter = S.filter === b.dataset.filter ? "all" : b.dataset.filter; render(); }));
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { S.tab = t.dataset.tab; save("mr.tab", S.tab); render(); }));
-$("sort").value = S.sort; $("sort").addEventListener("change", e => { S.sort = e.target.value; save("mr.sort", S.sort); render(); });
-$("hideRisky").checked = !!S.hideRisky; $("hideRisky").addEventListener("change", e => { S.hideRisky = e.target.checked; save("mr.hide", S.hideRisky); render(); });
+$("sort").value = S.sort; if(!$("sort").value){ $("sort").value = "signal"; S.sort = "signal"; }
+$("sort").addEventListener("change", e => { S.sort = e.target.value; save("mr.sort", S.sort); render(); });
 $("interval").value = String(S.interval); if(!$("interval").value){ $("interval").value = "30"; S.interval = 30; }
 $("interval").addEventListener("change", e => { S.interval = Number(e.target.value) || 30; save("mr.int", S.interval); nextAt = Date.now() + S.interval*1000; });
 $("refreshNow").addEventListener("click", () => tick(true));
@@ -525,7 +725,7 @@ $("addForm").addEventListener("submit", async e => {
   const q = $("addInput").value.trim(), box = $("results"); if(!q) return;
   if(ADDR_RE.test(q)){
     if(!S.watch.includes(q)) toggleWatch(q);
-    S.tab = "watch"; $("addInput").value = ""; box.hidden = true; render(); return;
+    S.tab = "watch"; S.filter = "all"; $("addInput").value = ""; box.hidden = true; render(); return;
   }
   box.hidden = false; box.textContent = "Searching…";
   try{
@@ -546,7 +746,7 @@ $("addForm").addEventListener("submit", async e => {
 $("results").addEventListener("click", e => {
   const b = e.target.closest("[data-add]"); if(!b) return;
   if(!S.watch.includes(b.dataset.add)) toggleWatch(b.dataset.add);
-  S.tab = "watch"; $("results").hidden = true; $("addInput").value = ""; render();
+  S.tab = "watch"; S.filter = "all"; $("results").hidden = true; $("addInput").value = ""; render();
 });
 
 /* ---------- clock ---------- */
@@ -558,6 +758,7 @@ setInterval(() => {
   if(S.error) el.innerHTML = '<span class="dot err"></span>Offline, retrying in ' + left + " s";
   else if(S.lastOk) el.innerHTML = '<span class="dot live"></span>Updated ' + new Date(S.lastOk).toLocaleTimeString() + ", next in " + left + " s";
 }, 1000);
+renderLog();
 render();
 tick(true);
 </script>
