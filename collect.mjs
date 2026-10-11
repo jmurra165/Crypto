@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { DEFAULTS, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -263,68 +264,32 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     meta.wallet = Math.round(equity * 1e4) / 1e4;
   } else errors.push("no SOL price, auto wallet not updated");
 
-  // 6c. Second auto wallet. Same starting balance, but pickier entries and exits that protect gains,
-  //     so the two can be compared on the same market.
+  // 6c. Rule-driven wallets, stepped by the shared engine in strategy.mjs.
+  //     "wallet-b" keeps the fixed tighter rules. "wallet-c" uses whatever rules the daily tuning last settled on.
   {
-    const bid = num(cfg.resetIdB);
-    let B = readState(path.join(dataDir, "wallet-b.json"), null);
-    if (!B || B.resetId !== bid || !B.pos) B = { resetId: bid, started: now, start: cfg.startSol, cash: cfg.startSol, pos: {}, hist: [], eq: [], skipped: 0, pend: {}, cool: {} };
-    B.pend = B.pend || {}; B.cool = B.cool || {};
-    B.cfg = { feePct: cfg.feePct };
-    B.about = "Buys only when a buy signal has at least $50k of liquidity and is still a buy on the next check. Puts in 5% of the wallet at a score of 60 or more and 2.5% below that. " +
-      "Sells on a Sell, Rug risk or Avoid verdict, at 25% down, at the buy price once it has been 15% up, on a 20% fall from the peak once it has been 20% up, or when the score drops below zero while in profit. Sells half at 50% up.";
-    if (solPx > 0) {
-      const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
-      const sellValue = (qty, x) => { const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return gross * (1 - imp) * (1 - fee) / solPx; };
-      const sell = (a, frac, why) => {
-        const p = B.pos[a], x = A.get(a), qty = p.qty * frac, costPart = p.cost * frac, out = x && x.px > 0 ? sellValue(qty, x) : 0;
-        B.cash += out;
-        B.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: x && x.px > 0 ? x.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
-        p.qty -= qty; p.cost -= costPart;
-        if (frac >= 1) { delete B.pos[a]; B.cool[a] = now; }
-      };
-      Object.keys(B.pos).forEach(a => {
-        const p = B.pos[a], x = A.get(a), e = p.px0;
-        if (!(x && x.px > 0)) { p.miss = (p.miss || 0) + 1; if (p.miss >= 20) sell(a, 1, "No longer priced, written off"); return; }
-        p.miss = 0; if (x.px > num(p.hi)) p.hi = x.px;
-        let why = x.signal === "sell" ? "Sell verdict" : x.signal === "rug" ? "Rug risk verdict" : x.signal === "avoid" ? "Liquidity fell under $10k" : "";
-        if (!why && x.px <= e * 0.75) why = "Stop-loss, 25% down";
-        if (!why && p.hi >= e * 1.15 && x.px <= e) why = "Back to the buy price after being 15% up";
-        if (!why && p.hi >= e * 1.2 && x.px <= p.hi * 0.8) why = "Fell 20% from its peak";
-        if (!why && x.px >= e * 1.02 && x.score < 0) why = "Momentum faded while in profit";
-        if (why) { sell(a, 1, why); return; }
-        if (!p.half && x.px >= e * 1.5) { sell(a, 0.5, "Took half at 50% up"); p.half = true; }
-      });
-      const holdings = () => Object.keys(B.pos).reduce((t, a) => { const p = B.pos[a], x = A.get(a); if (x && x.px > 0) { p.val = sellValue(p.qty, x); p.px = x.px; p.now = x.signal; } return t + num(p.val); }, 0);
-      let equity = B.cash + holdings();
-      const live = new Set();
-      A.forEach((x, a) => {
-        if (x.signal !== "buy" || x.onchain === "pending" || !(x.px > 0)) return;
-        live.add(a);
-        if (B.pos[a] || (B.cool[a] && now - B.cool[a] < 3600e3) || !(x.liq >= 50000)) return;
-        const seen = num(B.pend[a]);
-        if (!(seen && now - seen <= 6 * 60e3)) { B.pend[a] = now; return; }
-        if (now - seen < 60e3) return;
-        const t = tokens.get(a), amt = Math.min(equity * (x.score >= 60 ? 5 : 2.5) / 100, B.cash);
-        delete B.pend[a];
-        if (!(amt >= 0.01)) { B.skipped = (B.skipped || 0) + 1; return; }
-        const usdIn = amt * solPx, imp = usdIn / (x.liq / 2 + usdIn), fill = x.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
-        const sym = (t.pair.baseToken || {}).symbol || "?", checks = x.passN + "/" + x.checks.length;
-        B.pos[a] = { sym, qty, cost: amt, at: now, px0: fill, hi: x.px, checks, conf: x.conf, score: x.score };
-        B.cash -= amt;
-        B.hist.unshift({ t: now, side: "buy", sym, a, amt, px: fill, checks, conf: x.conf, score: x.score });
-      });
-      Object.keys(B.pend).forEach(a => { if (!live.has(a)) delete B.pend[a]; });
-      Object.keys(B.cool).forEach(a => { if (now - B.cool[a] > 3600e3) delete B.cool[a]; });
-      equity = B.cash + holdings();
-      B.equity = equity; B.solPx = solPx; B.t = now;
-      const last = B.eq[B.eq.length - 1];
-      if (!last || now - last.t >= 4.5 * 60e3) B.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
-      if (B.eq.length > 2500) B.eq = B.eq.filter((_, i) => i % 2 === 0 || i > B.eq.length - 400);
-      B.hist = B.hist.slice(0, 800);
-      writeJSON(path.join(dataDir, "wallet-b.json"), B);
-      meta.walletB = Math.round(equity * 1e4) / 1e4;
-    }
+    const obs = new Map();
+    A.forEach((x, a) => obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0] }));
+    const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
+    const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
+    const adaptive = Object.assign({}, DEFAULTS, tuning && tuning.current ? tuning.current : {});
+    const info = a => { const x = A.get(a), t = tokens.get(a); return { sym: (t && (t.pair.baseToken || {}).symbol) || "?", checks: x ? x.passN + "/" + x.checks.length : "", conf: x ? x.conf : "" }; };
+    const ruleWallet = (file, P, idKey, metaKey, extra) => {
+      const rid = num(cfg[idKey]);
+      let R = readState(path.join(dataDir, file), null);
+      if (!R || R.resetId !== rid || !R.pos) R = freshWallet(cfg.startSol, now, { resetId: rid });
+      R.cfg = { feePct: cfg.feePct }; R.params = P; R.about = describe(P); Object.assign(R, extra || {});
+      if (!(solPx > 0)) return;
+      const equity = stepWallet(R, obs, P, { now, solPx, fee, info, verdictOf: a => (A.get(a) || {}).signal });
+      R.solPx = solPx;
+      const last = R.eq[R.eq.length - 1];
+      if (!last || now - last.t >= 4.5 * 60e3) R.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
+      if (R.eq.length > 2500) R.eq = R.eq.filter((_, k) => k % 2 === 0 || k > R.eq.length - 400);
+      R.hist = R.hist.slice(0, 800);
+      writeJSON(path.join(dataDir, file), R);
+      meta[metaKey] = Math.round(equity * 1e4) / 1e4;
+    };
+    ruleWallet("wallet-b.json", DEFAULTS, "resetIdB", "walletB");
+    ruleWallet("wallet-c.json", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
   }
 
   // 6b. Keep a record of each coin's inputs and verdict, so rule changes can later be replayed against
