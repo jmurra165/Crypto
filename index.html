@@ -259,6 +259,7 @@ details.fold p{margin:10px 0 0}
   <nav class="views" role="tablist" aria-label="Sections">
     <button data-view="markets" role="tab">Markets<span class="bdg" id="nvBuy"></span></button>
     <button data-view="wallet" role="tab">Demo wallet<span class="bdg" id="nvWallet"></span></button>
+    <button data-view="auto" role="tab">Auto wallet<span class="bdg" id="nvAuto"></span></button>
     <button data-view="outcomes" role="tab">Signal outcomes<span class="bdg" id="nvOut"></span></button>
     <button data-view="method" role="tab">How it works</button>
   </nav>
@@ -375,6 +376,32 @@ details.fold p{margin:10px 0 0}
     </details>
   </div>
 
+  <div class="view" id="v-auto" hidden>
+    <section class="panel hero">
+      <div><span class="eyebrow">Auto wallet · simulated</span><div class="big num" id="awTotal">…</div><div class="num" id="awChange"></div></div>
+      <div class="kpis" id="awKpis"></div>
+    </section>
+    <p class="muted" id="awNote" style="margin:0;max-width:90ch">Waiting for the background tracker's first update.</p>
+    <section class="panel">
+      <div class="phd"><h2>Wallet value over time</h2><span class="muted" id="awEqNote"></span></div>
+      <canvas id="awEq" class="eq" role="img" aria-label="Auto wallet value over time"></canvas>
+    </section>
+    <section class="panel">
+      <div class="phd"><h2>Open positions</h2><span class="muted" id="awOpenNote"></span></div>
+      <div class="tablebox flat" id="awOpenBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th class="l">Bought</th><th>Paid</th><th>Value if sold</th><th>Profit or loss</th><th>Buy price, $</th><th>Price now, $</th><th>Held</th></tr></thead><tbody id="awOpen"></tbody></table></div>
+      <p class="empty" id="awOpenEmpty">No open positions. The wallet buys when the tracker next logs a buy signal.</p>
+    </section>
+    <div class="cols">
+      <section class="panel"><h2>Results</h2><dl class="kv" id="awPerf"></dl></section>
+      <section class="panel"><div class="phd"><h2>Completed trades, oldest to newest</h2><span class="muted">Bar height is the result, capped at 100%</span></div><div class="bars" id="awBars"></div></section>
+    </div>
+    <section class="panel">
+      <div class="phd"><h2>Completed trades</h2><span class="muted" id="awHistNote"></span></div>
+      <div class="tablebox flat" id="awHistBox" hidden><table><thead><tr><th>Coin</th><th class="l">Why it sold</th><th class="l">Bought</th><th class="l">Sold</th><th>Paid</th><th>Returned</th><th>Profit or loss</th><th>Held</th><th>Checks</th></tr></thead><tbody id="awHist"></tbody></table></div>
+      <p class="empty" id="awHistEmpty">Each buy and the sale that closes it will be listed here.</p>
+    </section>
+  </div>
+
   <div class="view" id="v-outcomes" hidden>
     <section class="panel hero">
       <div><span class="eyebrow">Signal outcomes</span><div class="big num" id="soHead">—</div><div class="muted" id="soSub"></div></div>
@@ -407,6 +434,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Confidence</b> on a buy is strong at 10 or more checks passed, moderate at 8 or 9, and weak below that. It is capped at moderate when the on-chain checks could not be loaded.</p>
     <p><b>Coverage</b> is about 150 to 200 Solana coins at a time, not every coin on the chain: your watchlist, DexScreener's boosted and recently updated tokens, GeckoTerminal's trending pools, the highest-volume pools of the last 24 hours, and the newest pairs. Stablecoins, SOL and staking tokens are left out. On-chain checks are loaded for coins near a buy, coins you hold or watch, and any coin you open; the rest show them as not checked.</p>
     <p><b>Background tracker</b> is a scheduled job in the GitHub repository that runs the same scoring about every 10 minutes, day and night, and saves every buy signal and its exit. It follows the trending scan, new pairs and the coins in the repository's watchlist file, which is separate from the watchlist in this browser. It has no chart data, so its checklists show the chart check as not checked.</p>
+    <p><b>Auto wallet</b> is a simulated wallet run by the background tracker, so it trades whether or not this page is open. It starts with 10 SOL, puts 5% of its current value into each new buy signal, and sells the whole position when that signal exits: a Sell, Rug risk or Avoid verdict, a 25% fall from the signal price, or a 35% fall from the peak after being up 30%. Fills include estimated price impact and 1% costs each way. A coin that can no longer be priced is written off as a total loss. It checks about every 10 minutes, so it reacts later than a person watching live would.</p>
     <p><b>Demo wallet</b> uses play money and never touches a real wallet. Balances, trade amounts and profit or loss are in SOL, so results reflect what a SOL holder would end up with; token prices stay in dollars to match the charts. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
     <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
     <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
@@ -846,7 +874,7 @@ async function tick(force){
     S.error = "Couldn't reach DexScreener. Check your connection; the page will keep retrying.";
   }
   S.busy = false; nextAt = Date.now() + S.interval * 1000;
-  render(); sampleEquity(false); rugcheckQueue(); fillRecords(); loadBg();
+  render(); sampleEquity(false); rugcheckQueue(); fillRecords(); loadBg(); if(S.view === "auto") renderAuto();
 }
 
 /* ---------- candles, trades and indicators ---------- */
@@ -1190,9 +1218,9 @@ function sampleEquity(force){
   if(D.eq.length > 1200) D.eq = D.eq.filter((_, i) => i % 2 === 0 || i > D.eq.length - 200);
   if(force || now - eqSaved > 60e3){ save("mr.demo", D); eqSaved = now; }
 }
-function drawEquity(){
-  const cv = $("dwEq"), D = S.demo, pts = D.eq.length ? [{t: D.eq[0].t - 1, v: D.start}, ...D.eq] : [];
-  $("dwEqNote").textContent = pts.length < 3 ? "The line starts once you have made a trade and prices have refreshed a few times" : "";
+function drawEquity(cvId, noteId, src){
+  const cv = $(cvId || "dwEq"), D = src || S.demo, pts = D.eq.length ? [{t: D.eq[0].t - 1, v: D.start}, ...D.eq] : [];
+  $(noteId || "dwEqNote").textContent = pts.length < 3 ? (src ? "The line fills in as the tracker runs" : "The line starts once you have made a trade and prices have refreshed a few times") : "";
   const W = cv.clientWidth, H = cv.clientHeight; if(!W || !H) return;
   const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim(), dpr = window.devicePixelRatio || 1;
   cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
@@ -1274,6 +1302,43 @@ function renderTicket(){
   warn.hidden = !w; warn.textContent = w;
 }
 
+/* ---------- auto wallet (run by the background tracker) ---------- */
+function renderAuto(){
+  const W = S.aw;
+  if(!W || !(W.start > 0)){ $("awTotal").textContent = "…"; return; }
+  const ids = Object.keys(W.pos || {}), held = ids.reduce((t, a) => t + n(W.pos[a].val), 0), cost = ids.reduce((t, a) => t + n(W.pos[a].cost), 0);
+  const equity = n(W.equity) || W.cash + held, chg = equity - W.start, cfg = W.cfg || {};
+  $("awTotal").textContent = sol(equity);
+  $("awChange").innerHTML = '<span class="' + toneS(chg) + '">' + sgnS(chg) + " (" + pct((equity / W.start - 1) * 100) + ')</span> <span class="muted">since starting with ' + sol(W.start) + " on " + esc(when(W.started)) + (W.solPx ? ". Worth about " + usd(equity * W.solPx) + "." : ".") + "</span>";
+  const sells = (W.hist || []).filter(h => h.side === "sell"), buys = (W.hist || []).filter(h => h.side === "buy"), realised = sells.reduce((t, h) => t + n(h.pnl), 0), open = held - cost;
+  const wins = sells.filter(h => n(h.pnl) > 0), losses = sells.filter(h => n(h.pnl) <= 0), sumW = wins.reduce((t, h) => t + h.pnl, 0), sumL = losses.reduce((t, h) => t + h.pnl, 0);
+  $("awKpis").innerHTML = "<div><b>" + sol(W.cash) + "</b><span>Cash</span></div><div><b>" + sol(held) + "</b><span>In " + ids.length + " position" + (ids.length === 1 ? "" : "s") + "</span></div>" +
+    '<div><b class="' + toneS(open) + '">' + sgnS(open) + '</b><span>Open profit or loss</span></div><div><b class="' + toneS(realised) + '">' + sgnS(realised) + "</b><span>Closed profit or loss</span></div>" +
+    "<div><b>" + buys.length + "</b><span>Buys made</span></div><div><b>" + (sells.length ? Math.round(wins.length / sells.length * 100) + "%" : "—") + "</b><span>Completed trades in profit</span></div>";
+  const stale = W.t && Date.now() - W.t > 45 * 60e3;
+  $("awNote").textContent = "Runs on its own in the background tracker. It puts " + (cfg.perSignalPct || 5) + "% of the wallet's value into each new buy signal and sells the whole position when that signal exits, with price impact and " + (cfg.feePct == null ? 1 : cfg.feePct) + "% costs per trade. Last update " + (W.t ? agoS(W.t) + " ago" : "pending") + "." +
+    (stale ? " That is longer than expected, so the tracker may be delayed." : "") + (W.skipped ? " " + W.skipped + " signal" + (W.skipped === 1 ? " was" : "s were") + " skipped for lack of cash." : "") + (sells.length < 30 ? " With " + sells.length + " completed trade" + (sells.length === 1 ? "" : "s") + ", the result so far says little about the rules." : "");
+  $("awOpenBox").hidden = !ids.length; $("awOpenEmpty").hidden = !!ids.length;
+  $("awOpenNote").textContent = ids.length ? "Valued at what a sale would return, as of the last update" : "";
+  $("awOpen").innerHTML = ids.map(a => { const p = W.pos[a], pl = n(p.val) - p.cost;
+    return '<tr><td><button class="lnk" data-open="' + esc(a) + '">' + esc(p.sym) + '</button></td><td class="l">' + (p.now && SIG[p.now] ? '<span class="pill ' + SIG[p.now][0] + '">' + SIG[p.now][1] + "</span>" : '<span class="muted">—</span>') + ' <span class="num muted">' + esc(p.checks || "") + '</span></td><td class="l num muted">' + esc(when(p.at)) +
+      '</td><td class="num">' + sol(p.cost) + '</td><td class="num">' + (p.val != null ? sol(p.val) : "—") + '</td><td class="num ' + toneS(pl) + '">' + (p.val != null ? sgnS(pl) + " (" + pct(pl / p.cost * 100) + ")" : "—") +
+      '</td><td class="num">' + price(p.px0) + '</td><td class="num">' + price(p.px) + '</td><td class="num muted">' + dur(Date.now() - p.at) + "</td></tr>"; }).join("");
+  $("awPerf").innerHTML = !sells.length ? "<dt>Completed trades</dt><dd>none yet</dd><dt>Open positions</dt><dd>" + ids.length + "</dd>" :
+    "<dt>Completed trades</dt><dd>" + sells.length + "</dd><dt>In profit</dt><dd>" + wins.length + " of " + sells.length + "</dd>" +
+    '<dt>Average win</dt><dd class="up">' + (wins.length ? sgnS(sumW / wins.length) : "—") + '</dd><dt>Average loss</dt><dd class="down">' + (losses.length ? sgnS(sumL / losses.length) : "—") + "</dd>" +
+    "<dt>Best / worst</dt><dd>" + sgnS(Math.max(...sells.map(h => n(h.pnl)))) + " / " + sgnS(Math.min(...sells.map(h => n(h.pnl)))) + "</dd>" +
+    "<dt>Won per 1 SOL lost</dt><dd>" + (sumL < 0 ? (sumW / -sumL).toFixed(2) + " SOL" : "no losses yet") + "</dd>" +
+    "<dt>Typical time held</dt><dd>" + dur([...sells.map(h => n(h.held))].sort((x, y) => x - y)[Math.floor(sells.length / 2)]) + "</dd>";
+  const seq = [...sells].reverse();
+  $("awBars").innerHTML = seq.length ? seq.map(h => { const v = h.cost ? h.pnl / h.cost : 0, ht = Math.max(3, Math.min(1, Math.abs(v)) * 46).toFixed(0);
+    return '<div class="bar2" title="' + esc(h.sym + " " + pct(v * 100)) + '"><i class="' + (v >= 0 ? "pos" : "neg") + '" style="height:' + ht + 'px"></i></div>'; }).join("") : '<span class="muted">Bars appear here as trades complete.</span>';
+  $("awHistBox").hidden = !sells.length; $("awHistEmpty").hidden = !!sells.length; $("awHistNote").textContent = sells.length > 60 ? "Latest 60 of " + sells.length : "";
+  $("awHist").innerHTML = sells.slice(0, 60).map(h => '<tr><td><button class="lnk" data-open="' + esc(h.a) + '">' + esc(h.sym) + '</button></td><td class="l muted">' + esc(h.why || "") + '</td><td class="l num muted">' + esc(h.buyT ? when(h.buyT) : "") + '</td><td class="l num muted">' + esc(when(h.t)) +
+    '</td><td class="num">' + sol(n(h.cost)) + '</td><td class="num">' + sol(n(h.amt)) + '</td><td class="num ' + toneS(n(h.pnl)) + '"><b>' + sgnS(n(h.pnl)) + "</b>" + (h.cost ? " (" + pct(h.pnl / h.cost * 100) + ")" : "") + '</td><td class="num muted">' + dur(n(h.held)) + '</td><td class="num muted">' + esc(h.checks || "") + "</td></tr>").join("");
+  if(S.view === "auto") drawEquity("awEq", "awEqNote", W);
+}
+
 /* ---------- checklist, holders, track record ---------- */
 function leanOf(a){ const c = S.candles.get(a + "|" + S.tf); if(!c || !c.list.length) return null; const st = study(c.list); return st ? chartRead(st, "buy").lean : null; }
 function checkBlock(a){
@@ -1311,6 +1376,10 @@ async function loadBg(){
   try{
     const j = await getJSON(BG_URL + "?t=" + Math.floor(Date.now() / 120e3));
     if(j && Array.isArray(j.signals)){ j.signals.forEach(r => { if(!r.r) r.r = {}; }); S.bg = j; renderRec(); renderNav(); }
+  }catch(e){}
+  try{
+    const w = await getJSON(BG_URL.replace("signals.json", "wallet.json") + "?t=" + Math.floor(Date.now() / 120e3));
+    if(w && w.pos && Array.isArray(w.hist)){ if(!Array.isArray(w.eq)) w.eq = []; S.aw = w; renderAuto(); renderNav(); }
   }catch(e){}
 }
 function logBuy(a, t, x){
@@ -1659,19 +1728,20 @@ setInterval(() => {
   else if(S.lastOk) el.innerHTML = '<span class="dot live"></span>Updated ' + new Date(S.lastOk).toLocaleTimeString() + ", next in " + left + " s";
 }, 1000);
 /* ---------- sections, wallet controls, start ---------- */
-const VIEWS = ["markets", "wallet", "outcomes", "method"];
+const VIEWS = ["markets", "wallet", "auto", "outcomes", "method"];
 S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : load("mr.view", "markets"); if(!VIEWS.includes(S.view)) S.view = "markets";
 function applyView(){
   VIEWS.forEach(v => { $("v-" + v).hidden = S.view !== v; });
   document.querySelectorAll("nav.views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === S.view));
   save("mr.view", S.view);
-  if(S.view === "markets") drawCharts(); if(S.view === "wallet") drawEquity();
+  if(S.view === "markets") drawCharts(); if(S.view === "wallet") drawEquity(); if(S.view === "auto") renderAuto();
 }
 function renderNav(){
   let buys = 0; S.A.forEach(x => { if(x.signal === "buy") buys++; });
   $("nvBuy").textContent = buys ? buys + " buy" : "";
   const D = S.demo, v = demoValue().equity; $("nvWallet").textContent = D.hist.length ? pct((v / D.start - 1) * 100) : "";
   $("nvWallet").className = "bdg " + (D.hist.length ? tone(v - D.start) : "");
+  if(S.aw && S.aw.start > 0 && S.aw.equity){ $("nvAuto").textContent = pct((S.aw.equity / S.aw.start - 1) * 100); $("nvAuto").className = "bdg " + toneS(S.aw.equity - S.aw.start); }
   const o = recs().filter(r => r.st === "open").length; $("nvOut").textContent = o ? o + " open" : "";
 }
 function openCoin(a){
@@ -1713,7 +1783,7 @@ twoTap($("demoReset"), "Reset wallet", "Tap again to reset", () => {
   S.demo = {start: st, cash: st, fee: S.demo.fee, pos: {}, hist: [], eq: [], auto: S.demo.auto, unit: "SOL"}; save("mr.demo", S.demo); toast("Demo wallet reset to " + sol(st) + "."); render();
 });
 twoTap($("recClear"), "Clear signal history", "Tap again to clear", () => { S.rec = []; save("mr.rec", S.rec); renderRec(); renderNav(); toast("Signal history cleared."); });
-window.addEventListener("resize", () => { if(S.view === "wallet") drawEquity(); });
+window.addEventListener("resize", () => { if(S.view === "wallet") drawEquity(); if(S.view === "auto" && S.aw) drawEquity("awEq", "awEqNote", S.aw); });
 applyView();
 renderLog();
 render();

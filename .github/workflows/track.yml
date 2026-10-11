@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["collect.mjs", "watchlist.json", ".github/workflows/track.yml"]
+    paths: ["collect.mjs", "watchlist.json", "config.json", ".github/workflows/track.yml"]
 
 permissions:
   contents: write

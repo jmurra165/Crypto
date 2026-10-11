@@ -1,0 +1,8 @@
+{
+  "wallet": {
+    "startSol": 10,
+    "perSignalPct": 5,
+    "feePct": 1,
+    "resetId": 0
+  }
+}

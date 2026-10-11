@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const API = "https://api.dexscreener.com";
 const GT = "https://api.geckoterminal.com/api/v2/networks/solana";
 const RUGCHECK = "https://api.rugcheck.xyz/v1/tokens/";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 const HZ = { h1: 3600e3, h6: 6 * 3600e3, h24: 24 * 3600e3 };
 const DEFAULT_WATCH = [
   "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
@@ -79,7 +80,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
 
   // 2. Prices
-  const tokens = new Map(); let priceOk = false;
+  const tokens = new Map(); let priceOk = false, solPx = 0, solLiq = 0;
   for (let i = 0; i < ids.length; i += 30) {
     try {
       const list = await getJSON(API + "/tokens/v1/solana/" + ids.slice(i, i + 30).join(","));
@@ -91,6 +92,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
         const totalLiq = pairs.reduce((s, p) => s + num(p.liquidity && p.liquidity.usd), 0);
         tokens.set(a, { addr: a, pair: pairs[0], totalLiq, nPairs: pairs.length });
         peak[a] = Math.max(num(peak[a]), totalLiq);
+        pairs.forEach(p => { const l = num(p.liquidity && p.liquidity.usd), k = Number(p.priceUsd) / Number(p.priceNative);
+          if (p.quoteToken && p.quoteToken.address === SOL_MINT && isFinite(k) && k > 1 && l > solLiq) { solLiq = l; solPx = k; } });
       });
     } catch (e) { errors.push("prices failed for a batch"); }
   }
@@ -160,17 +163,58 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   });
 
   // 6. Log new buy signals
-  const buysNow = [];
+  const buysNow = [], openedNow = [];
   A.forEach((x, a) => {
     if (x.signal !== "buy" || x.onchain === "pending" || !(x.px > 0)) return;
     const t = tokens.get(a), sym = (t.pair.baseToken || {}).symbol || "?";
     buysNow.push(sym);
     if (signals.some(r => r.a === a && (r.st === "open" || (r.x && now - r.x.t < 3600e3)))) return;
+    openedNow.push(a);
     signals.unshift({ a, sym, pool: t.pair.pairAddress || "", t: now, px: x.px, score: x.score, conf: x.conf, pass: x.passN, of: x.checks.length,
       failed: x.checks.filter(c => c.state === "fail").map(c => c.name), r: {}, st: "open", hi: x.px, lo: x.px, last: x.px, lastT: now, now: "buy" });
   });
   meta.buysNow = buysNow;
   meta.open = signals.filter(r => r.st === "open").length;
+
+  // 6a. Auto wallet: play money that buys every new buy signal and sells when the signal exits.
+  const cfg = Object.assign({ startSol: 10, perSignalPct: 5, feePct: 1, resetId: 0 }, (readJSON(path.join(root, "config.json"), {}).wallet) || {});
+  let W = readJSON(path.join(dataDir, "wallet.json"), null);
+  if (!W || W.resetId !== cfg.resetId || !W.pos) W = { resetId: cfg.resetId, started: now, start: cfg.startSol, cash: cfg.startSol, pos: {}, hist: [], eq: [], skipped: 0 };
+  W.cfg = cfg;
+  if (solPx > 0) {
+    const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
+    const sellValue = (p, x) => { const gross = p.qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return gross * (1 - imp) * (1 - fee) / solPx; };
+    const openSet = new Set(signals.filter(r => r.st === "open").map(r => r.a));
+    Object.keys(W.pos).forEach(a => {
+      if (openSet.has(a)) return;
+      const p = W.pos[a], x = A.get(a), rec = signals.find(r => r.a === a && r.st === "closed") || {}, ex = rec.x || {};
+      const out = x && x.px > 0 && !ex.stale ? sellValue(p, x) : 0;
+      W.cash += out;
+      W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: x && x.px > 0 ? x.px : num(ex.px), pnl: out - p.cost, cost: p.cost, held: now - p.at,
+        why: (ex.why || "Signal ended") + (out === 0 ? ", could not be sold" : ""), checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
+      delete W.pos[a];
+    });
+    const holdings = () => Object.keys(W.pos).reduce((t, a) => { const p = W.pos[a], x = A.get(a); if (x && x.px > 0) { p.val = sellValue(p, x); p.px = x.px; p.now = x.signal; } return t + num(p.val); }, 0);
+    let equity = W.cash + holdings();
+    openedNow.forEach(a => {
+      const x = A.get(a), t = tokens.get(a); if (W.pos[a] || !x || !t) return;
+      const amt = Math.min(equity * (Number(cfg.perSignalPct) || 5) / 100, W.cash);
+      if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; return; }
+      const usdIn = amt * solPx, imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
+      const sym = (t.pair.baseToken || {}).symbol || "?", checks = x.passN + "/" + x.checks.length;
+      W.pos[a] = { sym, qty, cost: amt, at: now, px0: fill, checks, conf: x.conf };
+      W.cash -= amt;
+      W.hist.unshift({ t: now, side: "buy", sym, a, amt, px: fill, checks, conf: x.conf });
+    });
+    equity = W.cash + holdings();
+    W.equity = equity; W.solPx = solPx; W.t = now;
+    const last = W.eq[W.eq.length - 1];
+    if (!last || now - last.t >= 9 * 60e3) W.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
+    if (W.eq.length > 2500) W.eq = W.eq.filter((_, i) => i % 2 === 0 || i > W.eq.length - 400);
+    W.hist = W.hist.slice(0, 800);
+    fs.writeFileSync(path.join(dataDir, "wallet.json"), JSON.stringify(W));
+    meta.wallet = Math.round(equity * 1e4) / 1e4;
+  } else errors.push("no SOL price, auto wallet not updated");
 
   // 6b. Keep a snapshot of every coin's inputs and verdict, so rule changes can later be replayed
   //     against exactly what the tracker saw at the time. One compressed file per day.
