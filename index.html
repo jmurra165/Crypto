@@ -321,7 +321,7 @@ details.fold p{margin:10px 0 0}
 
   <div class="view" id="v-wallet" hidden>
     <section class="panel hero">
-      <div><span class="eyebrow">Demo wallet · play money</span><div class="big num" id="dwTotal">$1,000</div><div class="num" id="dwChange"></div></div>
+      <div><span class="eyebrow">Demo wallet · play money</span><div class="big num" id="dwTotal">…</div><div class="num" id="dwChange"></div></div>
       <div class="kpis" id="dwKpis"></div>
     </section>
     <section class="panel">
@@ -333,7 +333,7 @@ details.fold p{margin:10px 0 0}
         <h2>Place a demo trade</h2>
         <div class="form">
           <label>Coin<select id="dwCoin"></select></label>
-          <label>Amount, $<input type="text" inputmode="decimal" id="dwAmt" data-damt="1"></label>
+          <label>Amount, SOL<input type="text" inputmode="decimal" id="dwAmt" data-damt="1"></label>
           <div class="chips" id="dwChips"><button class="btn small" data-pc="0.1">10% of cash</button><button class="btn small" data-pc="0.25">25%</button><button class="btn small" data-pc="0.5">50%</button><button class="btn small" data-pc="1">Max</button></div>
           <dl class="kv" id="dwPreview"></dl>
           <p class="warnline" id="dwWarn" hidden></p>
@@ -344,7 +344,7 @@ details.fold p{margin:10px 0 0}
         <h2>Auto-follow signals</h2>
         <div class="form">
           <label class="check"><input type="checkbox" id="dwAuto"> Buy every new buy signal, and sell when it exits</label>
-          <label>Amount per signal, $<input type="text" inputmode="decimal" id="dwAutoAmt"></label>
+          <label>Amount per signal, SOL<input type="text" inputmode="decimal" id="dwAutoAmt"></label>
           <p class="muted" style="margin:0">With this on, the wallet becomes a hands-off test of the page's own signals, with costs and price impact included. It only acts while the page is open.</p>
         </div>
         <h2 style="margin-top:20px">Your results so far</h2>
@@ -353,18 +353,18 @@ details.fold p{margin:10px 0 0}
     </div>
     <section class="panel">
       <div class="phd"><h2>Holdings</h2><span class="muted" id="dwHoldNote"></span></div>
-      <div class="tablebox flat" id="dwHoldBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th>Value if sold</th><th>Profit or loss</th><th>Avg cost</th><th>Price now</th><th>Share</th><th>Held</th><th class="l">Sell</th></tr></thead><tbody id="dwRows"></tbody></table></div>
+      <div class="tablebox flat" id="dwHoldBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th>Value if sold</th><th>Profit or loss</th><th>Avg cost, $</th><th>Price now, $</th><th>Share</th><th>Held</th><th class="l">Sell</th></tr></thead><tbody id="dwRows"></tbody></table></div>
       <p class="empty" id="dwEmpty">No holdings yet. Pick a coin above, or open any coin in Markets and use Demo buy.</p>
     </section>
     <section class="panel">
       <div class="phd"><h2>Trade history</h2><span class="muted" id="dwHistNote"></span></div>
-      <div class="tablebox flat" id="dwHistBox" hidden><table><thead><tr><th>Coin</th><th class="l">Trade</th><th class="l">When</th><th>Amount</th><th>Price</th><th>Result</th><th class="l">Note</th></tr></thead><tbody id="dwHist"></tbody></table></div>
+      <div class="tablebox flat" id="dwHistBox" hidden><table><thead><tr><th>Coin</th><th class="l">Trade</th><th class="l">When</th><th>Amount</th><th>Price, $</th><th>Result</th><th class="l">Note</th></tr></thead><tbody id="dwHist"></tbody></table></div>
       <p class="empty" id="dwHistEmpty">Your demo buys and sells will be listed here.</p>
     </section>
     <details class="fold">
       <summary>Wallet settings</summary>
       <div class="form" style="max-width:420px;margin-top:12px">
-        <label>Starting balance, $<input type="text" inputmode="decimal" id="demoStart"></label>
+        <label>Starting balance, SOL<input type="text" inputmode="decimal" id="demoStart"></label>
         <label>Costs per trade, %<input type="text" inputmode="decimal" id="demoFee"></label>
         <p class="muted" style="margin:0">The starting balance applies when you reset. Costs apply to the next trade.</p>
         <button class="btn small" id="demoReset" style="align-self:flex-start">Reset wallet</button>
@@ -403,7 +403,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Buy</b> needs a score of +35 or more, low rug risk, and no more than one failed safety check. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
     <p><b>Confidence</b> on a buy is strong at 10 or more checks passed, moderate at 8 or 9, and weak below that. It is capped at moderate when the on-chain checks could not be loaded.</p>
     <p><b>Background tracker</b> is a scheduled job in the GitHub repository that runs the same scoring about every 10 minutes, day and night, and saves every buy signal and its exit. It follows the trending scan, new pairs and the coins in the repository's watchlist file, which is separate from the watchlist in this browser. It has no chart data, so its checklists show the chart check as not checked.</p>
-    <p><b>Demo wallet</b> uses play money and never touches a real wallet. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
+    <p><b>Demo wallet</b> uses play money and never touches a real wallet. Balances, trade amounts and profit or loss are in SOL, so results reflect what a SOL holder would end up with; token prices stay in dollars to match the charts. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
     <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
     <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
     <p><b>Chart read</b> uses the candles on the timeframe you pick: RSI over 14 candles, the 9 and 21 candle moving averages, the volume-weighted average price, recent volume against earlier volume, and where the price sits between the low (support) and high (resistance) of the previous 20 candles. It is shown beside the verdict as a second opinion and does not change the score.</p>
@@ -726,7 +726,7 @@ async function loadPrices(){
   getJSON(API + "/tokens/v1/solana/" + SOL).then(l => {
     const ps = (Array.isArray(l) ? l : []).filter(p => p.baseToken && p.baseToken.address === SOL && /^USD/i.test((p.quoteToken || {}).symbol || ""))
       .sort((x, y) => n(y.liquidity && y.liquidity.usd) - n(x.liquidity && x.liquidity.usd));
-    if(ps[0]) S.sol = {px: Number(ps[0].priceUsd), ch: ps[0].priceChange || {}};
+    if(ps[0]){ S.sol = {px: Number(ps[0].priceUsd), ch: ps[0].priceChange || {}}; if(!S.solPx && S.sol.px > 1){ S.solPx = S.sol.px; migrateDemo(); render(); } }
   }).catch(() => {});
   const by = new Map();
   res.forEach(r => {
@@ -736,7 +736,12 @@ async function loadPrices(){
       if(!by.has(a)) by.set(a, []); by.get(a).push(p);
     });
   });
-  const now = Date.now(); let posDirty = false;
+  const now = Date.now(); let posDirty = false, solBest = 0;
+  by.forEach(pairs => pairs.forEach(p => {
+    const l = n(p.liquidity && p.liquidity.usd), k = Number(p.priceUsd) / Number(p.priceNative);
+    if(p.quoteToken && p.quoteToken.address === SOL && isFinite(k) && k > 1 && l > solBest){ solBest = l; S.solPx = k; }
+  }));
+  if(S.solPx && S.demo.unit !== "SOL") migrateDemo();
   by.forEach((pairs, a) => {
     pairs.sort((x, y) => n(y.liquidity && y.liquidity.usd) - n(x.liquidity && x.liquidity.usd));
     const totalLiq = pairs.reduce((s, p) => s + n(p.liquidity && p.liquidity.usd), 0);
@@ -1060,8 +1065,28 @@ function tradesBlock(t, a){
 let toastT;
 function toast(msg){ if(!msg) return; const el = $("toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 4500); }
 const feeRate = () => clamp(Number(S.demo.fee), 0, 20) / 100;
-function quoteBuy(a, usdIn){ const x = S.A.get(a); if(!x || !(x.px > 0) || !(usdIn > 0)) return null; const imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp), fee = usdIn * feeRate(); return {imp, fill, fee, qty: (usdIn - fee) / fill}; }
-function quoteSell(a, qty){ const x = S.A.get(a); if(!x || !(x.px > 0)) return null; const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return {imp, px: x.px, out: gross * (1 - imp) * (1 - feeRate())}; }
+const sol = x => { const a = Math.abs(x); return (a >= 100 ? x.toFixed(1) : a >= 1 ? x.toFixed(3) : x.toFixed(4)) + " SOL"; };
+const sgnS = v => (v >= 0 ? "+" : "−") + sol(Math.abs(v));
+const toneS = v => v > 5e-5 ? "up" : v < -5e-5 ? "down" : "";
+const inUsd = x => S.solPx ? "about " + usd(x * S.solPx) : "";
+/* The wallet began in dollars. Once a SOL price is known it is converted to SOL, one time. */
+function migrateDemo(){
+  const D = S.demo, k = S.solPx; if(D.unit === "SOL" || !(k > 0)) return;
+  const r4 = v => Math.round(v * 1e4) / 1e4;
+  if(!D.hist.length && !Object.keys(D.pos).length){ D.start = 10; D.cash = 10; D.eq = []; }
+  else {
+    D.start = r4(D.start / k); D.cash = D.cash / k;
+    Object.keys(D.pos).forEach(a => { const p = D.pos[a]; p.usd = p.cost; p.cost = p.cost / k; });
+    D.hist.forEach(h => { h.amt = n(h.usd) / k; if(h.pnl != null) h.pnl = h.pnl / k; if(h.cost != null) h.cost = h.cost / k; });
+    D.eq.forEach(e => { e.v = r4(e.v / k); });
+  }
+  D.auto.amt = 0.25; S.demoAmt = "0.25"; save("mr.damt", S.demoAmt);
+  D.unit = "SOL"; save("mr.demo", D);
+  ["dwAmt", "dwAutoAmt", "demoStart"].forEach(id => { const el = $(id); if(el) el.value = id === "dwAmt" ? S.demoAmt : id === "dwAutoAmt" ? D.auto.amt : D.start; });
+}
+/* Amounts in and out are SOL. Token prices stay in dollars, as on the charts. */
+function quoteBuy(a, solIn){ const x = S.A.get(a), k = S.solPx; if(!x || !(x.px > 0) || !(solIn > 0) || !(k > 0) || S.demo.unit !== "SOL") return null; const usdIn = solIn * k, imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp), fee = solIn * feeRate(); return {imp, fill, fee, usdIn, qty: (usdIn - fee * k) / fill}; }
+function quoteSell(a, qty){ const x = S.A.get(a), k = S.solPx; if(!x || !(x.px > 0) || !(k > 0) || S.demo.unit !== "SOL") return null; const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return {imp, px: x.px, out: gross * (1 - imp) * (1 - feeRate()) / k}; }
 function demoValue(){
   let held = 0, cost = 0, unpriced = 0;
   Object.keys(S.demo.pos).forEach(a => { const p = S.demo.pos[a], q = quoteSell(a, p.qty); if(q) held += q.out; else { held += p.cost; unpriced++; } cost += p.cost; });
@@ -1069,38 +1094,40 @@ function demoValue(){
 }
 function demoQuoteText(a){
   const amt = Number(S.demoAmt), q = quoteBuy(a, amt), x = S.A.get(a);
-  let s2 = "Demo cash: " + usd(S.demo.cash) + ". ";
+  if(S.demo.unit !== "SOL") return "Waiting for the SOL price.";
+  let s2 = "Demo cash: " + sol(S.demo.cash) + ". ";
   if(!(amt > 0)) return s2 + "Enter an amount to buy.";
   if(!q) return s2 + "No live price for this coin.";
-  s2 += "A " + usd(amt) + " buy would fill about " + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% above the quoted price, plus " + usd(q.fee) + " in costs.";
+  s2 += "A " + sol(amt) + " buy (" + inUsd(amt) + ") would fill about " + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% above the quoted price, plus " + sol(q.fee) + " in costs.";
   if(x && x.signal !== "buy") s2 += " The verdict on this coin is " + SIG[x.signal][1] + " right now.";
   return s2;
 }
 function demoBuy(a, amt, auto){
   const t = S.tokens.get(a), x = S.A.get(a);
   if(!(amt > 0)) return "Enter an amount first.";
-  if(amt > S.demo.cash + 1e-9) return "Not enough demo cash. You have " + usd(S.demo.cash) + ".";
+  if(S.demo.unit !== "SOL") return "Still waiting for the SOL price. Try again in a few seconds.";
+  if(amt > S.demo.cash + 1e-9) return "Not enough demo cash. You have " + sol(S.demo.cash) + ".";
   const q = quoteBuy(a, amt); if(!q || !t) return "No live price for this coin, so the demo buy was not placed.";
   const sym = (t.pair.baseToken || {}).symbol || "?", p = S.demo.pos[a] || {sym, qty: 0, cost: 0, at: Date.now(), v: x.signal, checks: x.passN + "/" + x.checks.length, auto: !!auto};
-  p.qty += q.qty; p.cost += amt; S.demo.pos[a] = p; S.demo.cash -= amt;
-  S.demo.hist.unshift({t: Date.now(), side: "buy", sym, a, usd: amt, px: q.fill, v: x.signal, checks: x.passN + "/" + x.checks.length, auto: !!auto});
+  p.qty += q.qty; p.cost += amt; p.usd = n(p.usd) + q.usdIn; S.demo.pos[a] = p; S.demo.cash -= amt;
+  S.demo.hist.unshift({t: Date.now(), side: "buy", sym, a, amt, px: q.fill, v: x.signal, checks: x.passN + "/" + x.checks.length, auto: !!auto});
   S.demo.hist = S.demo.hist.slice(0, 300);
-  S.pos[a] = {entry: p.cost / p.qty, at: p.at, peak: Math.max(x.px, (S.pos[a] && S.pos[a].peak) || 0)}; save("mr.pos", S.pos);
+  S.pos[a] = {entry: p.usd / p.qty, at: p.at, peak: Math.max(x.px, (S.pos[a] && S.pos[a].peak) || 0)}; save("mr.pos", S.pos);
   if(!S.watch.includes(a)){ S.watch.unshift(a); save("mr.watch", S.watch); }
   save("mr.demo", S.demo); sampleEquity(true);
-  return (auto ? "Auto-bought " : "Bought ") + usd(amt) + " of " + sym + " at " + price(q.fill) + ".";
+  return (auto ? "Auto-bought " : "Bought ") + sol(amt) + " of " + sym + " at " + price(q.fill) + ".";
 }
 function demoSell(a, frac, why){
   const p = S.demo.pos[a]; if(!p) return "";
   const qty = p.qty * frac, q = quoteSell(a, qty);
   if(!q) return "No live price for " + p.sym + " right now, so it cannot be sold. A coin that stops trading stays stuck like this.";
   const costPart = p.cost * frac; S.demo.cash += q.out;
-  S.demo.hist.unshift({t: Date.now(), side: "sell", sym: p.sym, a, usd: q.out, px: q.px, pnl: q.out - costPart, cost: costPart, v: p.v, held: Date.now() - p.at, auto: !!why, why: why || ""});
+  S.demo.hist.unshift({t: Date.now(), side: "sell", sym: p.sym, a, amt: q.out, px: q.px, pnl: q.out - costPart, cost: costPart, v: p.v, held: Date.now() - p.at, auto: !!why, why: why || ""});
   S.demo.hist = S.demo.hist.slice(0, 300);
-  p.qty -= qty; p.cost -= costPart;
-  if(frac >= 1 || p.cost < 0.01){ delete S.demo.pos[a]; delete S.pos[a]; save("mr.pos", S.pos); }
+  p.usd = n(p.usd) * (1 - frac); p.qty -= qty; p.cost -= costPart;
+  if(frac >= 1 || p.cost < 1e-5){ delete S.demo.pos[a]; delete S.pos[a]; save("mr.pos", S.pos); }
   save("mr.demo", S.demo); sampleEquity(true);
-  return (why ? "Auto-sold " : "Sold ") + (frac >= 1 ? "all" : Math.round(frac * 100) + "%") + " of " + p.sym + " for " + usd(q.out) + ", " + (q.out >= costPart ? "a profit of " + usd(q.out - costPart) : "a loss of " + usd(costPart - q.out)) + ".";
+  return (why ? "Auto-sold " : "Sold ") + (frac >= 1 ? "all" : Math.round(frac * 100) + "%") + " of " + p.sym + " for " + sol(q.out) + ", " + (q.out >= costPart ? "a profit of " + sol(q.out - costPart) : "a loss of " + sol(costPart - q.out)) + ".";
 }
 function demoClick(e){
   const b = e.target.closest("[data-dbuy]"), sl = e.target.closest("[data-dsell]");
@@ -1110,9 +1137,9 @@ function demoClick(e){
 }
 function demoBox(t){
   const id = esc(t.addr), p = S.demo.pos[t.addr], q = p ? quoteSell(t.addr, p.qty) : null;
-  return '<div><h3>Demo trade, play money</h3><div class="plan"><label>Amount, $<input type="text" inputmode="decimal" id="da-' + id + '" data-damt="1" value="' + esc(S.demoAmt) + '"></label>' +
+  return '<div><h3>Demo trade, play money</h3><div class="plan"><label>Amount, SOL<input type="text" inputmode="decimal" id="da-' + id + '" data-damt="1" value="' + esc(S.demoAmt) + '"></label>' +
     '<p data-dquote="' + id + '">' + esc(demoQuoteText(t.addr)) + "</p>" +
-    (p ? '<p style="color:var(--fg)">Holding: paid ' + usd(p.cost) + ", worth " + (q ? usd(q.out) + " if sold now (" + pct((q.out / p.cost - 1) * 100) + ")" : "unknown, no live price") + ".</p>" : "") +
+    (p ? '<p style="color:var(--fg)">Holding: paid ' + sol(p.cost) + ", worth " + (q ? sol(q.out) + " if sold now (" + pct((q.out / p.cost - 1) * 100) + ")" : "unknown, no live price") + ".</p>" : "") +
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-dbuy="' + id + '">Demo buy</button>' +
     (p ? '<button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button><button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button>' : "") +
     '<button class="btn small" data-view="wallet">Open wallet</button></div></div></div>';
@@ -1122,7 +1149,8 @@ function sampleEquity(force){
   const D = S.demo; if(!D.hist.length) return;
   const v = demoValue().equity, last = D.eq[D.eq.length - 1], now = Date.now();
   if(!force && last && now - last.t < 60e3 && Math.abs(v / last.v - 1) < 0.002) return;
-  D.eq.push({t: now, v: Math.round(v * 100) / 100});
+  if(D.unit !== "SOL") return;
+  D.eq.push({t: now, v: Math.round(v * 1e4) / 1e4});
   if(D.eq.length > 1200) D.eq = D.eq.filter((_, i) => i % 2 === 0 || i > D.eq.length - 200);
   if(force || now - eqSaved > 60e3){ save("mr.demo", D); eqSaved = now; }
 }
@@ -1132,11 +1160,11 @@ function drawEquity(){
   const W = cv.clientWidth, H = cv.clientHeight; if(!W || !H) return;
   const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim(), dpr = window.devicePixelRatio || 1;
   cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-  const padR = 64, padB = 20, padT = 10, pw = W - padR, ph = H - padB - padT;
+  const padR = 58, padB = 20, padT = 10, pw = W - padR, ph = H - padB - padT;
   g.font = "11px " + (css.getPropertyValue("--mono") || "monospace"); g.textBaseline = "middle";
   let lo = Math.min(D.start, ...pts.map(p => p.v)), hi = Math.max(D.start, ...pts.map(p => p.v)); const pad = (hi - lo) * 0.12 || D.start * 0.02; lo -= pad; hi += pad;
   const Y = v => padT + (hi - v) / (hi - lo) * ph;
-  [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1].forEach(v => { g.strokeStyle = col("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(0, Y(v)); g.lineTo(pw, Y(v)); g.stroke(); g.fillStyle = col("--muted"); g.textAlign = "left"; g.fillText(usd(v), pw + 6, Y(v)); });
+  [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1].forEach(v => { g.strokeStyle = col("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(0, Y(v)); g.lineTo(pw, Y(v)); g.stroke(); g.fillStyle = col("--muted"); g.textAlign = "left"; g.fillText(sol(v).replace(" SOL", ""), pw + 6, Y(v)); });
   g.strokeStyle = col("--muted"); g.setLineDash([5, 4]); g.beginPath(); g.moveTo(0, Y(D.start)); g.lineTo(pw, Y(D.start)); g.stroke(); g.setLineDash([]);
   g.fillStyle = col("--muted"); g.fillText("Start", 4, Y(D.start) - 8);
   if(pts.length < 2) return;
@@ -1154,12 +1182,14 @@ function dur(ms){ const m = ms / 60000; return m < 1 ? "under a minute" : m < 90
 const when = t => new Date(t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
 let coinSig = "";
 function renderDemo(){
-  const D = S.demo, ids = Object.keys(D.pos), V = demoValue(), chg = V.equity - D.start;
-  $("dwTotal").textContent = usd(V.equity);
-  $("dwChange").innerHTML = '<span class="' + tone(chg) + '">' + sgn(chg) + " (" + pct((V.equity / D.start - 1) * 100) + ")</span> <span class=\"muted\">since starting with " + usd(D.start) + "</span>";
+  const D = S.demo;
+  if(D.unit !== "SOL"){ $("dwTotal").textContent = "…"; $("dwChange").innerHTML = '<span class="muted">Waiting for the SOL price before the wallet can be valued.</span>'; return; }
+  const ids = Object.keys(D.pos), V = demoValue(), chg = V.equity - D.start;
+  $("dwTotal").textContent = sol(V.equity);
+  $("dwChange").innerHTML = '<span class="' + toneS(chg) + '">' + sgnS(chg) + " (" + pct((V.equity / D.start - 1) * 100) + ")</span> <span class=\"muted\">since starting with " + sol(D.start) + ". Worth " + inUsd(V.equity) + " with SOL at " + usd(S.solPx) + ".</span>";
   const sells = D.hist.filter(h => h.side === "sell"), realised = sells.reduce((t, h) => t + n(h.pnl), 0), open = V.held - V.cost;
-  $("dwKpis").innerHTML = "<div><b>" + usd(D.cash) + "</b><span>Cash</span></div><div><b>" + usd(V.held) + "</b><span>In " + ids.length + " position" + (ids.length === 1 ? "" : "s") + "</span></div>" +
-    '<div><b class="' + tone(open) + '">' + sgn(open) + "</b><span>Open profit or loss</span></div>" + '<div><b class="' + tone(realised) + '">' + sgn(realised) + "</b><span>Closed profit or loss</span></div>";
+  $("dwKpis").innerHTML = "<div><b>" + sol(D.cash) + "</b><span>Cash</span></div><div><b>" + sol(V.held) + "</b><span>In " + ids.length + " position" + (ids.length === 1 ? "" : "s") + "</span></div>" +
+    '<div><b class="' + toneS(open) + '">' + sgnS(open) + "</b><span>Open profit or loss</span></div>" + '<div><b class="' + toneS(realised) + '">' + sgnS(realised) + "</b><span>Closed profit or loss</span></div>";
   /* coin picker */
   const list = [...S.A].map(([a, x]) => ({a, x, sym: ((S.tokens.get(a) || {pair:{}}).pair.baseToken || {}).symbol || "?"}))
     .sort((p, q) => ({buy:0, hold:1, sell:2, avoid:3, rug:4})[p.x.signal] - ({buy:0, hold:1, sell:2, avoid:3, rug:4})[q.x.signal] || q.x.passN - p.x.passN);
@@ -1175,31 +1205,31 @@ function renderDemo(){
   const onBuy = sells.filter(h => h.v === "buy"), other = sells.filter(h => h.v !== "buy"), net = l => l.reduce((t, h) => t + n(h.pnl), 0);
   $("dwPerf").innerHTML = !sells.length ? '<dt>Closed trades</dt><dd>none yet</dd>' :
     "<dt>Closed trades</dt><dd>" + sells.length + "</dd><dt>Winners</dt><dd>" + wins.length + " of " + sells.length + " (" + Math.round(wins.length / sells.length * 100) + "%)</dd>" +
-    "<dt>Average win</dt><dd class=\"up\">" + (wins.length ? sgn(sumW / wins.length) : "—") + "</dd><dt>Average loss</dt><dd class=\"down\">" + (losses.length ? sgn(sumL / losses.length) : "—") + "</dd>" +
-    "<dt>Best / worst</dt><dd>" + sgn(Math.max(...sells.map(h => n(h.pnl)))) + " / " + sgn(Math.min(...sells.map(h => n(h.pnl)))) + "</dd>" +
-    "<dt>Won per $1 lost</dt><dd>" + (sumL < 0 ? "$" + (sumW / -sumL).toFixed(2) : "no losses yet") + "</dd>" +
-    "<dt>Bought on a Buy verdict</dt><dd class=\"" + tone(net(onBuy)) + "\">" + (onBuy.length ? onBuy.length + " closed, " + sgn(net(onBuy)) : "none closed") + "</dd>" +
-    "<dt>Bought on anything else</dt><dd class=\"" + tone(net(other)) + "\">" + (other.length ? other.length + " closed, " + sgn(net(other)) : "none closed") + "</dd>";
+    "<dt>Average win</dt><dd class=\"up\">" + (wins.length ? sgnS(sumW / wins.length) : "—") + "</dd><dt>Average loss</dt><dd class=\"down\">" + (losses.length ? sgnS(sumL / losses.length) : "—") + "</dd>" +
+    "<dt>Best / worst</dt><dd>" + sgnS(Math.max(...sells.map(h => n(h.pnl)))) + " / " + sgnS(Math.min(...sells.map(h => n(h.pnl)))) + "</dd>" +
+    "<dt>Won per 1 SOL lost</dt><dd>" + (sumL < 0 ? (sumW / -sumL).toFixed(2) + " SOL" : "no losses yet") + "</dd>" +
+    "<dt>Bought on a Buy verdict</dt><dd class=\"" + toneS(net(onBuy)) + "\">" + (onBuy.length ? onBuy.length + " closed, " + sgnS(net(onBuy)) : "none closed") + "</dd>" +
+    "<dt>Bought on anything else</dt><dd class=\"" + toneS(net(other)) + "\">" + (other.length ? other.length + " closed, " + sgnS(net(other)) : "none closed") + "</dd>";
   /* holdings */
   $("dwHoldBox").hidden = !ids.length; $("dwEmpty").hidden = !!ids.length;
   $("dwHoldNote").textContent = V.unpriced ? V.unpriced + " without a live price, shown at cost" : ids.length ? "Valued at what a sale would return now, after impact and costs" : "";
   $("dwRows").innerHTML = ids.map(a => { const p = D.pos[a], q = quoteSell(a, p.qty), x = S.A.get(a), pl = q ? q.out - p.cost : null, id = esc(a);
     return '<tr><td><button class="lnk" data-open="' + id + '">' + esc(p.sym) + "</button>" + (p.auto ? ' <span class="tag">auto</span>' : "") + '</td><td class="l">' + (x ? '<span class="pill ' + SIG[x.signal][0] + '">' + SIG[x.signal][1] + '</span> <span class="num muted">' + x.passN + "/" + x.checks.length + "</span>" : '<span class="muted">no data</span>') +
-      '</td><td class="num">' + (q ? usd(q.out) : "—") + '</td><td class="num ' + (pl == null ? "muted" : tone(pl)) + '">' + (pl == null ? "no live price" : sgn(pl) + " (" + pct(pl / p.cost * 100) + ")") +
-      '</td><td class="num">' + price(p.cost / p.qty) + '</td><td class="num">' + (x ? price(x.px) : "—") + '</td><td class="num">' + (q ? Math.round(q.out / V.equity * 100) + "%" : "—") + '</td><td class="num muted">' + dur(Date.now() - p.at) +
+      '</td><td class="num">' + (q ? sol(q.out) : "—") + '</td><td class="num ' + (pl == null ? "muted" : toneS(pl)) + '">' + (pl == null ? "no live price" : sgnS(pl) + " (" + pct(pl / p.cost * 100) + ")") +
+      '</td><td class="num">' + price(n(p.usd) / p.qty) + '</td><td class="num">' + (x ? price(x.px) : "—") + '</td><td class="num">' + (q ? Math.round(q.out / V.equity * 100) + "%" : "—") + '</td><td class="num muted">' + dur(Date.now() - p.at) +
       '</td><td class="l"><button class="btn small" data-dsell="' + id + '" data-frac="0.25">25%</button> <button class="btn small" data-dsell="' + id + '" data-frac="0.5">50%</button> <button class="btn small" data-dsell="' + id + '" data-frac="1">All</button></td></tr>'; }).join("");
   /* history */
   $("dwHistBox").hidden = !D.hist.length; $("dwHistEmpty").hidden = !!D.hist.length; $("dwHistNote").textContent = D.hist.length > 40 ? "Latest 40 of " + D.hist.length : "";
-  $("dwHist").innerHTML = D.hist.slice(0, 40).map(h => "<tr><td><b>" + esc(h.sym) + '</b></td><td class="l"><span class="' + (h.side === "buy" ? "up" : "down") + '">' + (h.side === "buy" ? "Buy" : "Sell") + '</span></td><td class="l num muted">' + esc(when(h.t)) + '</td><td class="num">' + usd(n(h.usd)) + '</td><td class="num">' + price(h.px) +
-    '</td><td class="num ' + (h.side === "sell" ? tone(n(h.pnl)) : "muted") + '">' + (h.side === "sell" ? sgn(n(h.pnl)) + (h.cost ? " (" + pct(h.pnl / h.cost * 100) + ")" : "") : "—") + '</td><td class="l muted">' +
+  $("dwHist").innerHTML = D.hist.slice(0, 40).map(h => "<tr><td><b>" + esc(h.sym) + '</b></td><td class="l"><span class="' + (h.side === "buy" ? "up" : "down") + '">' + (h.side === "buy" ? "Buy" : "Sell") + '</span></td><td class="l num muted">' + esc(when(h.t)) + '</td><td class="num">' + sol(n(h.amt)) + '</td><td class="num">' + price(h.px) +
+    '</td><td class="num ' + (h.side === "sell" ? toneS(n(h.pnl)) : "muted") + '">' + (h.side === "sell" ? sgnS(n(h.pnl)) + (h.cost ? " (" + pct(h.pnl / h.cost * 100) + ")" : "") : "—") + '</td><td class="l muted">' +
     esc(h.side === "buy" ? "Verdict was " + ((SIG[h.v] || ["", "unknown"])[1]) + (h.checks ? ", " + h.checks : "") + (h.auto ? ", auto" : "") : (h.why ? "Auto: " + h.why : "Manual") + (h.held ? ", held " + dur(h.held) : "")) + "</td></tr>").join("");
   if(S.view === "wallet") drawEquity();
 }
 function renderTicket(){
   const a = $("dwCoin").value, amt = Number(S.demoAmt), q = a ? quoteBuy(a, amt) : null, x = S.A.get(a), warn = $("dwWarn"); let w = "";
-  $("dwPreview").innerHTML = !a || !x ? "<dt>Preview</dt><dd>choose a coin</dd>" : !q ? "<dt>Cash available</dt><dd>" + usd(S.demo.cash) + "</dd><dt>Preview</dt><dd>enter an amount</dd>" :
-    "<dt>Cash available</dt><dd>" + usd(S.demo.cash) + "</dd><dt>Verdict now</dt><dd>" + SIG[x.signal][1] + ", " + x.passN + "/" + x.checks.length + " checks</dd><dt>Quoted price</dt><dd>" + price(x.px) + "</dd><dt>Your fill</dt><dd>" + price(q.fill) + " (+" + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% impact)</dd>" +
-    "<dt>Costs</dt><dd>" + usd(q.fee) + "</dd><dt>Stop-loss level</dt><dd>" + price(q.fill * 0.75) + "</dd><dt>Cash after</dt><dd>" + usd(Math.max(0, S.demo.cash - amt)) + "</dd>";
+  $("dwPreview").innerHTML = !a || !x ? "<dt>Preview</dt><dd>choose a coin</dd>" : !q ? "<dt>Cash available</dt><dd>" + sol(S.demo.cash) + "</dd><dt>Preview</dt><dd>" + (S.demo.unit === "SOL" ? "enter an amount" : "waiting for the SOL price") + "</dd>" :
+    "<dt>Cash available</dt><dd>" + sol(S.demo.cash) + "</dd><dt>Amount in dollars</dt><dd>" + inUsd(amt) + "</dd><dt>Verdict now</dt><dd>" + SIG[x.signal][1] + ", " + x.passN + "/" + x.checks.length + " checks</dd><dt>Quoted price</dt><dd>" + price(x.px) + "</dd><dt>Your fill</dt><dd>" + price(q.fill) + " (+" + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% impact)</dd>" +
+    "<dt>Costs</dt><dd>" + sol(q.fee) + "</dd><dt>Stop-loss price</dt><dd>" + price(q.fill * 0.75) + "</dd><dt>Cash after</dt><dd>" + sol(Math.max(0, S.demo.cash - amt)) + "</dd>";
   if(x && q){
     if(amt > S.demo.cash + 1e-9) w = "That is more than your demo cash.";
     else if(x.signal !== "buy") w = "The verdict on this coin is " + SIG[x.signal][1] + " right now, not Buy.";
@@ -1621,7 +1651,7 @@ document.addEventListener("click", e => {
   const o = e.target.closest("[data-open]"); if(o){ openCoin(o.dataset.open); return; }
   const sr = e.target.closest("[data-src]"); if(sr){ S.recSrc = sr.dataset.src; save("mr.src", S.recSrc); renderRec(); renderNav(); return; }
   const sf = e.target.closest("[data-sf]"); if(sf){ S.sf = sf.dataset.sf; document.querySelectorAll("[data-sf]").forEach(b => b.classList.toggle("on", b === sf)); renderRec(); return; }
-  const pc = e.target.closest("[data-pc]"); if(pc){ S.demoAmt = String(Math.floor(S.demo.cash * Number(pc.dataset.pc) * 100) / 100); save("mr.damt", S.demoAmt); document.querySelectorAll("[data-damt]").forEach(i => { i.value = S.demoAmt; }); renderTicket(); return; }
+  const pc = e.target.closest("[data-pc]"); if(pc){ S.demoAmt = String(Math.floor(S.demo.cash * Number(pc.dataset.pc) * 1e4) / 1e4); save("mr.damt", S.demoAmt); document.querySelectorAll("[data-damt]").forEach(i => { i.value = S.demoAmt; }); renderTicket(); return; }
   if(e.target.closest("#v-wallet")) demoClick(e);
 });
 document.addEventListener("input", e => {
@@ -1643,9 +1673,9 @@ function twoTap(btn, label, armedLabel, fn){ let armed = 0; btn.addEventListener
   if(Date.now() - armed < 4000){ armed = 0; btn.textContent = label; fn(); }
   else { armed = Date.now(); btn.textContent = armedLabel; setTimeout(() => { if(armed){ armed = 0; btn.textContent = label; } }, 4000); } }); }
 twoTap($("demoReset"), "Reset wallet", "Tap again to reset", () => {
-  const st = Number(String($("demoStart").value).replace(/[^0-9.]/g, "")) || 1000;
+  const st = Number(String($("demoStart").value).replace(/[^0-9.]/g, "")) || 10;
   Object.keys(S.demo.pos).forEach(a => { delete S.pos[a]; }); save("mr.pos", S.pos);
-  S.demo = {start: st, cash: st, fee: S.demo.fee, pos: {}, hist: [], eq: [], auto: S.demo.auto}; save("mr.demo", S.demo); toast("Demo wallet reset to " + usd(st) + "."); render();
+  S.demo = {start: st, cash: st, fee: S.demo.fee, pos: {}, hist: [], eq: [], auto: S.demo.auto, unit: "SOL"}; save("mr.demo", S.demo); toast("Demo wallet reset to " + sol(st) + "."); render();
 });
 twoTap($("recClear"), "Clear signal history", "Tap again to clear", () => { S.rec = []; save("mr.rec", S.rec); renderRec(); renderNav(); toast("Signal history cleared."); });
 window.addEventListener("resize", () => { if(S.view === "wallet") drawEquity(); });
