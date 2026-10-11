@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { DEFAULTS, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { DEFAULTS, ADAPTIVE_START, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -268,10 +268,14 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   //     "wallet-b" keeps the fixed tighter rules. "wallet-c" uses whatever rules the daily tuning last settled on.
   {
     const obs = new Map();
-    A.forEach((x, a) => obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0] }));
+    A.forEach((x, a) => {
+      const p = tokens.get(a).pair, ch = p.priceChange || {}, tx = (p.txns || {}).h1 || {}, v = p.volume || {}, b1 = num(tx.buys), s1 = num(tx.sells);
+      obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0],
+        h1: num(ch.h1), m5: num(ch.m5), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
+    });
     const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
     const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
-    const adaptive = Object.assign({}, DEFAULTS, tuning && tuning.current ? tuning.current : {});
+    const adaptive = Object.assign({}, ADAPTIVE_START, tuning && tuning.current ? tuning.current : {});
     const info = a => { const x = A.get(a), t = tokens.get(a); return { sym: (t && (t.pair.baseToken || {}).symbol) || "?", checks: x ? x.passN + "/" + x.checks.length : "", conf: x ? x.conf : "" }; };
     const ruleWallet = (file, P, idKey, metaKey, extra) => {
       const rid = num(cfg[idKey]);

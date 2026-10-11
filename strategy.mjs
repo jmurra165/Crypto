@@ -4,6 +4,9 @@
 // A wallet is stepped once per check with one observation per coin:
 //   { px, liq, score, rug, fails, oc }   price in USD, liquidity in USD, momentum score, rug score,
 //                                        number of failed safety checks (0-10), on-chain status "o" | "p" | "u"
+//   { h1, m5, bp, acc }                  price change over 1 hour and 5 minutes (%), share of the last hour's
+//                                        trades that were buys (0-1 or null), last hour's volume against the
+//                                        6-hour average (or null)
 
 export const DEFAULTS = {
   buyLine: 35,      // minimum momentum score to buy
@@ -17,8 +20,14 @@ export const DEFAULTS = {
   trailAt: 0.20,    // once this far up, start trailing (0 = off)
   trailDrop: 0.20,  // sell on this fall from the peak while trailing
   halfAt: 0.5,      // sell half when this far up (0 = off)
-  fade: true        // sell when in profit and the score drops below zero
+  fade: true,       // sell when in profit and the score drops below zero
+  maxH1: 1000,      // do not buy a coin already up more than this % in the last hour (1000 = no limit)
+  maxM5: 1000,      // do not buy a coin up more than this % in the last 5 minutes (1000 = no limit)
+  early: false      // also buy on building trade flow before the price has moved
 };
+
+// Where the adaptive wallet starts: the fixed tighter rules plus a limit on chasing coins that have already run.
+export const ADAPTIVE_START = Object.assign({}, DEFAULTS, { maxH1: 25, maxM5: 10 });
 
 // The values the daily tuning may move between, one step at a time.
 export const GRID = {
@@ -33,7 +42,10 @@ export const GRID = {
   trailAt: [0.1, 0.2, 0.3],
   trailDrop: [0.15, 0.2, 0.3],
   halfAt: [0, 0.3, 0.5, 1],
-  fade: [false, true]
+  fade: [false, true],
+  maxH1: [15, 25, 40, 1000],
+  maxM5: [5, 10, 1000],
+  early: [false, true]
 };
 
 const pc = v => Math.round(v * 100) + "%";
@@ -51,12 +63,17 @@ export const LABELS = {
   trailAt: v => "trailing stop starts " + pc(v) + " up",
   trailDrop: v => "trailing stop sells on a " + pc(v) + " fall from the peak",
   halfAt: v => (v ? "sell half at " + pc(v) + " up" : "never sell half early"),
-  fade: v => (v ? "sell when in profit and the score drops below zero" : "ignore fading score while in profit")
+  fade: v => (v ? "sell when in profit and the score drops below zero" : "ignore fading score while in profit"),
+  maxH1: v => (v >= 1000 ? "no limit on how far a coin has already risen in the hour" : "skip coins already up more than " + v + "% in the last hour"),
+  maxM5: v => (v >= 1000 ? "no limit on the 5-minute move" : "skip coins up more than " + v + "% in the last 5 minutes"),
+  early: v => (v ? "also buy early on building trade flow" : "no early-flow buys")
 };
 
 export function describe(P) {
   return "Buys when the score is " + P.buyLine + " or more, the rug score is under " + P.rugMax + ", " + (P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
-    " and liquidity is at least " + usdK(P.minLiq) + (P.confirm ? ", and the signal is still there on the next check" : "") + ". Puts in " + P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that. " +
+    " and liquidity is at least " + usdK(P.minLiq) + (P.confirm ? ", and the signal is still there on the next check" : "") + "." +
+    (P.maxH1 < 1000 || P.maxM5 < 1000 ? " Skips coins already up more than " + [P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean).join(" or ") + "." : "") +
+    (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") + " Puts in " + P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that. " +
     "Sells on a Sell, Rug risk or Avoid verdict, at " + pc(P.stop) + " down" + (P.lockAt ? ", at the buy price once it has been " + pc(P.lockAt) + " up" : "") +
     ", on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up" + (P.fade ? ", or when the score drops below zero while in profit" : "") + "." + (P.halfAt ? " Sells half at " + pc(P.halfAt) + " up." : "");
 }
@@ -100,7 +117,9 @@ export function stepWallet(W, obs, P, ctx) {
   let equity = W.cash + holdings();
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
   for (const [a, o] of obs) {
-    if (!(o.px > 0) || o.oc === "p" || forced(o) || !(o.score >= P.buyLine) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
+    const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
+    if (!(o.px > 0) || o.oc === "p" || forced(o) || !(o.score >= P.buyLine || early) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
+    if (num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5) continue;
     live.add(a);
     if (W.pos[a] || (W.cool[a] && now - W.cool[a] < 3600e3) || !(o.liq >= P.minLiq)) continue;
     if (P.confirm) {
@@ -109,13 +128,13 @@ export function stepWallet(W, obs, P, ctx) {
       if (now - seen < cMin) continue;
       delete W.pend[a];
     }
-    const amt = Math.min(equity * (o.score >= P.hiScore ? P.sizeHi : P.sizeLo) / 100, W.cash);
+    const amt = Math.min(equity * (o.score >= P.hiScore && o.score >= P.buyLine ? P.sizeHi : P.sizeLo) / 100, W.cash);
     if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; continue; }
     const usdIn = amt * solPx, imp = usdIn / (o.liq / 2 + usdIn), fill = o.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
     const inf = ctx.info ? ctx.info(a) : { sym: a.slice(0, 4) };
     W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
     W.cash -= amt;
-    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score });
+    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, early: early && !(o.score >= P.buyLine) ? 1 : undefined });
   }
   // A pending confirmation is dropped when the coin was observed and no longer qualifies.
   for (const a of Object.keys(W.pend)) { if (!live.has(a) && (obs.has(a) || now - W.pend[a] > cMax)) delete W.pend[a]; }

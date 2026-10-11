@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { DEFAULTS, GRID, LABELS, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { DEFAULTS, ADAPTIVE_START, GRID, LABELS, describe, freshWallet, stepWallet } from "./strategy.mjs";
 
 const DAY = 86400e3;
 const MIN_DAYS = 5, MIN_TRADES = 50, MIN_TEST_TRADES = 10, MIN_TRAIN_TRADES = 20, MARGIN = 0.5, WINDOW_DAYS = 14;
@@ -28,7 +28,9 @@ export function loadLines(snapDir, now) {
       const obs = new Map();
       for (const r of j.rows) {
         const ck = String(r[19] || ""); let fails = 0; for (let i = 0; i < 10 && i < ck.length; i++) if (ck[i] === "f") fails++;
-        if (r[1] > 0) obs.set(r[0], { px: r[1], liq: r[2] || 0, score: r[16], rug: r[17], fails, oc: r[20] || "p" });
+        const b1 = r[9] || 0, s1 = r[10] || 0;
+        if (r[1] > 0) obs.set(r[0], { px: r[1], liq: r[2] || 0, score: r[16], rug: r[17], fails, oc: r[20] || "p", h1: r[6] || 0, m5: r[5] || 0,
+          bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: r[14] > 0 ? r[13] / (r[14] / 6) : null });
       }
       lines.push({ t: j.t, full: j.full !== false, obs });
     }
@@ -60,11 +62,13 @@ function neighbours(P) {
 
 export function tune({ dataDir, now = Date.now(), force = false } = {}) {
   const file = path.join(dataDir, "tuning.json"), prev = readJSON(file, null);
-  if (!force && prev && now - prev.t < DAY - 10 * 60e3) return null;
+  // Re-run early when the set of tunable rules has changed since the last report.
+  const gridSig = Object.keys(GRID).join(",");
+  if (!force && prev && prev.grid === gridSig && now - prev.t < DAY - 10 * 60e3) return null;
   const lines = loadLines(path.join(dataDir, "snap"), now);
-  const current = Object.assign({}, DEFAULTS, prev && prev.current ? prev.current : {});
+  const current = Object.assign({}, ADAPTIVE_START, prev && prev.current ? prev.current : {});
   const history = prev && Array.isArray(prev.history) ? prev.history : [];
-  const out = { t: now, lines: lines.length, spanDays: 0, current, since: prev && prev.since ? prev.since : now, history, table: [], ready: false, need: { days: MIN_DAYS, trades: MIN_TRADES } };
+  const out = { t: now, lines: lines.length, spanDays: 0, current, since: prev && prev.since ? prev.since : now, history, table: [], grid: gridSig, ready: false, need: { days: MIN_DAYS, trades: MIN_TRADES } };
   if (lines.length < 2) { out.status = "No recorded data to replay yet."; out.currentText = describe(current); fs.writeFileSync(file, JSON.stringify(out)); return out; }
   const first = lines[0].t, last = lines[lines.length - 1].t, span = last - first;
   out.spanDays = Math.round(span / DAY * 10) / 10;
