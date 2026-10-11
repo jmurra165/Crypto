@@ -663,7 +663,7 @@ function detail(t, a){
   const oc = a.onchain === "ok" ? "" : '<li><span class="sev low"></span><span class="muted">' + (a.onchain === "pending" && !S.rcOff ? "On-chain check from RugCheck still loading" : "On-chain check from RugCheck unavailable, so mint authority, holder concentration and LP lock were not checked") + "</span></li>";
   const dex = safeUrl(p.url), ps = a.position;
   const posHtml = ps
-    ? '<dl class="kv"><dt>Entry</dt><dd>' + price(ps.entry) + " (" + ago(ps.at).replace(/^(?!just)(.*)$/, "$1 ago") + ")</dd>"<dt>Now</dt><dd class="' + (ps.pnl >= 0 ? "up" : "down") + '">' + pct(ps.pnl*100) + "</dd><dt>Peak since</dt><dd>" + price(ps.peak) + " (" + pct(ps.offPeak*100) + ' now)</dd><dt>Stop-loss at</dt><dd>' + price(ps.entry*0.75) + '</dd></dl><button class="btn small" data-clear="' + esc(t.addr) + '">Clear entry</button>'
+    ? '<dl class="kv"><dt>Entry</dt><dd>' + price(ps.entry) + " (" + ago(ps.at).replace(/^(?!just)(.*)$/, "$1 ago") + ')</dd><dt>Now</dt><dd class="' + (ps.pnl >= 0 ? "up" : "down") + '">' + pct(ps.pnl*100) + "</dd><dt>Peak since</dt><dd>" + price(ps.peak) + " (" + pct(ps.offPeak*100) + ' now)</dd><dt>Stop-loss at</dt><dd>' + price(ps.entry*0.75) + '</dd></dl><button class="btn small" data-clear="' + esc(t.addr) + '">Clear entry</button>'
     : '<span class="muted">Mark the price you bought at and the page applies two exit rules: a 25% stop-loss and a 35% trailing stop once you are up 30%.</span><button class="btn small" data-enter="' + esc(t.addr) + '">Mark entry at ' + price(p.priceUsd) + "</button>";
   return '<tr class="detail"><td colspan="10">' +
     '<p class="verdict">' + esc(a.verdict) + "</p>" +
