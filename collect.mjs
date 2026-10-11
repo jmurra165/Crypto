@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { QUICK, STEADY, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { QUICK, STEADY, RECOVERY, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -94,6 +94,9 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   }
   const pool = set => [...new Set(Object.values(set).filter(e => e && now - e.at < 3 * 3600e3).flatMap(e => e.ids))];
   const gtTrend = pool(lists.trend), vol = pool(lists.vol);
+  // Where each coin came from: b = DexScreener boosted or promoted, t = GeckoTerminal trending, v = top volume, n = new pair, w = watchlist.
+  const srcSets = { b: new Set(trend.slice(0, 30)), t: new Set(gtTrend), v: new Set(vol), n: new Set(fresh), w: new Set(watch) };
+  const srcOf = a => Object.keys(srcSets).filter(k => srcSets[k].has(a)).join("");
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
   const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
 
@@ -121,7 +124,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
     writeJSON(path.join(dataDir, "signals.json"), { meta, signals });
-    writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: num(cache.lastSnap) });
+    writeJSON(path.join(dataDir, "cache.json"), Object.assign({}, cache, { peak, rc: rcCache, lists, disc, run: runNo }));
     return { meta, signals };
   }
   meta.lastGood = now;
@@ -130,7 +133,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const histOf = a => ({ pts: [], peakLiq: num(peak[a]) });
   //    Coins with an open signal or held by a wallet always get one; after that, the 60 strongest
   //    scores with tradeable liquidity, so their holder figures are on record for later analysis.
-  const heldIds = [...new Set(["wallet.json", "wallet-b.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
+  const heldIds = [...new Set(["wallet.json", "wallet-b.json", "wallet-c.json", "wallet-d.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
   const need = [], cand = [];
   tokens.forEach((t, a) => {
     const x = analyse(t, histOf(a), undefined, boosts.get(a) || 0, null, null);
@@ -153,6 +156,20 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     await sleep(pause);
   }
   if (rcFails >= 3) errors.push("on-chain checks unavailable");
+  // Holder counts over time, so growth per hour can be worked out for each coin.
+  const hh = cache.hh || {};
+  need.forEach(a => {
+    const rc = rcCache[a], tot = rc && rc.ok && rc.hold ? num(rc.hold.total) : 0; if (!tot) return;
+    const arr = hh[a] || (hh[a] = []), last = arr[arr.length - 1];
+    if (!last || rc.at > last[0]) arr.push([rc.at, tot]);
+    while (arr.length && now - arr[0][0] > 3 * 3600e3) arr.shift();
+  });
+  const hgOf = a => {
+    const arr = hh[a]; if (!arr || arr.length < 2) return null;
+    const cur = arr[arr.length - 1]; let best = null;
+    for (const smp of arr) { const age = cur[0] - smp[0]; if (age >= 40 * 60e3 && age <= 100 * 60e3 && (!best || Math.abs(age - 3600e3) < Math.abs(cur[0] - best[0] - 3600e3))) best = smp; }
+    return best && best[1] > 0 ? (cur[1] / best[1] - 1) * 100 * (3600e3 / (cur[0] - best[0])) : null;
+  };
 
   // 4. Final verdicts
   const A = new Map();
@@ -234,7 +251,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     A.forEach((x, a) => {
       const p = tokens.get(a).pair, ch = p.priceChange || {}, tx = (p.txns || {}).h1 || {}, v = p.volume || {}, b1 = num(tx.buys), s1 = num(tx.sells);
       obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0],
-        h1: num(ch.h1), m5: num(ch.m5), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
+        h1: num(ch.h1), m5: num(ch.m5), h24: num(ch.h24), src: srcOf(a), hg: hgOf(a), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
     });
     const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
     const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
@@ -269,6 +286,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     };
     ruleWallet("wallet.json", "Quick profit", QUICK, "resetId", "wallet");
     ruleWallet("wallet-b.json", "Established coins", STEADY, "resetIdB", "walletB");
+    ruleWallet("wallet-d.json", "Recovery", RECOVERY, "resetIdD", "walletD");
     ruleWallet("wallet-c.json", "Adaptive", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
   }
 
@@ -292,7 +310,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
         Math.round(num(v.h1)), Math.round(num(v.h6)), Math.round(num(v.h24)), x.score, x.rug, x.signal[0], x.checks.map(k => k.state[0]).join(""), x.onchain[0],
         H ? H.total : null, H ? r3(H.top1) : null, H ? r3(H.top10) : null, H ? r3(H.devPct) : null, H ? r3(H.insPct) : null, rc ? num(rc.insWallets) : null,
         rc && typeof rc.lpLockedPct === "number" ? r3(rc.lpLockedPct) : null, rc && rc.auth ? (rc.auth.mint ? 1 : 0) + (rc.auth.freeze ? 2 : 0) : null,
-        f ? f.ub : null, f ? f.us : null, f ? f.bu : null, f ? f.su : null, f ? f.top : null]);
+        f ? f.ub : null, f ? f.us : null, f ? f.bu : null, f ? f.su : null, f ? f.top : null, srcOf(a)]);
     });
     if (rows.length) {
       const prev = fs.existsSync(file) ? zlib.gunzipSync(fs.readFileSync(file)).toString("utf8") : "";
@@ -303,7 +321,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       fs.writeFileSync(path.join(snapDir, "README.txt"),
         "One file per UTC hour (older files are one per day). One line per tracker run: {t, full, rows}. full=true lines hold every scanned coin (about every 10 minutes); other lines hold only coins near a buy, with an open signal, or held by a wallet (every run).\n" +
         "Each row: 0 address, 1 priceUsd, 2 liquidityUsd, 3 marketCap, 4 pairAgeHours, 5-8 change m5, h1, h6, h24 (%), 9 buys 1h, 10 sells 1h, 11 buys 6h, 12 sells 6h, 13-15 volume 1h, 6h, 24h (USD), 16 score, 17 rugScore, 18 verdict initial (b/h/s/r/a), 19 the 12 checks in page order (p/f/n), 20 on-chain status (o/p/u), " +
-        "21 holder count, 22 largest holder %, 23 top 10 %, 24 developer %, 25 insider %, 26 linked insider wallets, 27 pool locked %, 28 authorities (0 none, 1 mint, 2 freeze, 3 both), 29 distinct buyers 15 min, 30 distinct sellers 15 min, 31 bought USD 15 min, 32 sold USD 15 min, 33 largest wallet's share of 15 min volume. Columns 21 on are null when not looked up; rows before 11 Oct 2026 09:55 UTC stop at column 20.\n");
+        "21 holder count, 22 largest holder %, 23 top 10 %, 24 developer %, 25 insider %, 26 linked insider wallets, 27 pool locked %, 28 authorities (0 none, 1 mint, 2 freeze, 3 both), 29 distinct buyers 15 min, 30 distinct sellers 15 min, 31 bought USD 15 min, 32 sold USD 15 min, 33 largest wallet's share of 15 min volume, 34 where the coin came from (b = DexScreener boosted or promoted, t = trending pools, v = top volume, n = new pair, w = watchlist; from 11 Oct 2026 23:10 UTC). Columns 21 on are null when not looked up; rows before 11 Oct 2026 09:55 UTC stop at column 20.\n");
       snapAt = now;
     }
     meta.snapshot = rows.length;
@@ -316,7 +334,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   Object.keys(peak).forEach(a => { if (!live.has(a)) delete peak[a]; });
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
   Object.keys(flow).forEach(a => { if (!live.has(a) || now - flow[a].at > 3600e3) delete flow[a]; });
-  writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt, flow, gtWait });
+  Object.keys(hh).forEach(a => { if (!live.has(a)) delete hh[a]; });
+  writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt, flow, gtWait, hh });
   writeJSON(path.join(dataDir, "coins.json"), { t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) });
   return { meta, signals: keep };
 }

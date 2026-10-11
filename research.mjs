@@ -7,7 +7,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 1;
+const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 2;
 const MIN_CASES = 30;   // per part, before a verdict is given
 
 function readJSON(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return fallback; } }
@@ -34,7 +34,7 @@ function loadSeries(snapDir, now) {
         const b1 = r[9] || 0, s1 = r[10] || 0;
         arr.push({ t: j.t, px: r[1], liq: r[2] || 0, mc: r[3] || 0, m5: r[5] || 0, h1: r[6] || 0, h6: r[7] || 0, h24: r[8] || 0,
           bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: r[14] > 0 ? r[13] / (r[14] / 6) : null,
-          score: r[16], rug: r[17], sig: r[18], fails, hold: r[21] == null ? null : r[21], ub: r[29] == null ? null : r[29], us: r[30] == null ? null : r[30] });
+          score: r[16], rug: r[17], sig: r[18], fails, hold: r[21] == null ? null : r[21], ub: r[29] == null ? null : r[29], us: r[30] == null ? null : r[30], src: r.length > 34 ? String(r[34] || "") : null });
       }
     }
   }
@@ -65,7 +65,14 @@ const SIGNALS = [
   { id: "liqadd", name: "Liquidity being added", what: "Pool liquidity up 5% or more over about an hour while the price is up less than 5%.", f: (o, arr, i) => { const p = back(arr, i, 60); return safe(o) && !!p && p.liq > 0 && o.liq / p.liq - 1 >= 0.05 && o.px / p.px - 1 < 0.05; } },
   { id: "buyers", name: "More distinct buyers than sellers", what: "At least 8 different wallets buying in the last 15 minutes, and 1.5 times as many buyers as sellers.", f: o => safe(o) && o.ub != null && o.ub >= 8 && o.ub >= (o.us || 0) * 1.5 },
   { id: "buyersflat", name: "More buyers than sellers, price flat", what: "As above, while the price is up less than 10% in the hour.", f: o => safe(o) && o.ub != null && o.ub >= 8 && o.ub >= (o.us || 0) * 1.5 && o.h1 < 10 },
-  { id: "bigsteady", name: "Large coin with a positive score", what: "Market cap of $50M or more with a score of 20 or more.", f: o => safe(o) && o.mc >= 5e7 && o.score >= 20 }
+  { id: "bigsteady", name: "Large coin with a positive score", what: "Market cap of $50M or more with a score of 20 or more.", f: o => safe(o) && o.mc >= 5e7 && o.score >= 20 },
+  { id: "noholders", name: "Buy rule, holder count not surging", what: "The current buy rule, leaving out coins whose holder count grew 1% or more over the last hour.", f: (o, arr, i) => { const p = back(arr, i, 60); return safe(o) && o.score >= 35 && o.fails <= 1 && !(p && o.hold > 0 && p.hold > 0 && o.hold / p.hold - 1 >= 0.01); } },
+  { id: "srcboost", name: "Source: paid-promotion lists", what: "Any tradeable coin that came from DexScreener's boosted or promoted lists. Shows whether promoted coins are worse bets than the rest.", f: o => safe(o) && o.src != null && o.src.includes("b") },
+  { id: "srcnot", name: "Source: not promoted", what: "Any tradeable coin that did not come from the paid-promotion lists.", f: o => safe(o) && o.src != null && !o.src.includes("b") },
+  { id: "srcvol", name: "Source: top-volume list", what: "Any tradeable coin from the highest-volume pools of the last 24 hours.", f: o => safe(o) && o.src != null && o.src.includes("v") },
+  { id: "srctrend", name: "Source: trending pools", what: "Any tradeable coin from GeckoTerminal's trending pools.", f: o => safe(o) && o.src != null && o.src.includes("t") },
+  { id: "buyboost", name: "Buy rule on promoted coins", what: "The current buy rule, promoted coins only.", f: o => safe(o) && o.score >= 35 && o.fails <= 1 && o.src != null && o.src.includes("b") },
+  { id: "buynot", name: "Buy rule on coins not promoted", what: "The current buy rule, leaving out promoted coins.", f: o => safe(o) && o.score >= 35 && o.fails <= 1 && o.src != null && !o.src.includes("b") }
 ];
 
 // What happened after a case: the move after one hour, and whether +10% or -10% came first within two hours.

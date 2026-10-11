@@ -27,7 +27,9 @@ export const DEFAULTS = {
   maxH24: 100000,   // do not buy a coin already up more than this % in 24 hours (100000 = no limit)
   take: 0,          // sell everything when this far up (0 = off)
   sellBelow: -30,   // sell when the momentum score falls to this or lower
-  dip: 0            // wait for this fall from the high after a coin qualifies, then buy the bounce (0 = buy straight away)
+  dip: 0,           // wait for this fall from the high after a coin qualifies, then buy the bounce (0 = buy straight away)
+  maxHG: 1000,      // skip coins whose holder count is growing faster than this % per hour (1000 = no limit)
+  noBoost: false    // skip coins that came from DexScreener's paid-promotion lists
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -40,6 +42,8 @@ export const QUICK = Object.assign({}, DEFAULTS, REVIEWED, { maxH1: 25, maxM5: 1
 export const STEADY = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 15, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 15 });
 // Where the adaptive wallet starts; the daily tuning moves it from here.
 export const ADAPTIVE_START = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 25, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 20 });
+// Trades the one lead that was ahead on day one: coins that are down over 24 hours but now being bought.
+export const RECOVERY = Object.assign({}, QUICK, { maxH24: 0 });
 export const ADAPTIVE_VERSION = 2;
 
 // The values the daily tuning may move between, one step at a time.
@@ -61,6 +65,8 @@ export const GRID = {
   early: [false, true],
   maxH24: [0, 20, 50, 100, 300, 100000],
   dip: [0, 0.05, 0.08, 0.12],
+  maxHG: [0.5, 1, 2, 1000],
+  noBoost: [false, true],
   take: [0, 0.05, 0.08, 0.12, 0.2],
   sellBelow: [-30, 0, 15, 25]
 };
@@ -86,6 +92,8 @@ export const LABELS = {
   early: v => (v ? "also buy early on building trade flow" : "no early-flow buys"),
   maxH24: v => (v >= 100000 ? "no limit on the 24-hour rise" : v <= 0 ? "only buy coins that are down over 24 hours" : "skip coins already up more than " + v + "% in 24 hours"),
   dip: v => (v ? "wait for a " + pc(v) + " pullback after the signal before buying" : "buy as soon as the signal qualifies"),
+  maxHG: v => (v >= 1000 ? "no limit on holder growth" : "skip coins whose holder count is growing more than " + v + "% an hour"),
+  noBoost: v => (v ? "skip coins from the paid-promotion lists" : "allow coins from the paid-promotion lists"),
   take: v => (v ? "sell everything at " + pc(v) + " up" : "no fixed take-profit"),
   sellBelow: v => "sell when the score falls to " + v + " or lower"
 };
@@ -101,6 +109,8 @@ export function describe(P) {
     " and liquidity is at least " + usdK(P.minLiq) + (P.confirm && !P.dip ? ", and the signal is still there on the next check" : "") + "." +
     (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
     (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
+    (P.noBoost ? " Skips coins that came from DexScreener's paid-promotion lists." : "") +
+    (P.maxHG < 1000 ? " Skips coins whose holder count is growing more than " + P.maxHG + "% an hour." : "") +
     (caps.length ? " Skips coins already up more than " + caps.join(", or ") + "." : "") +
     (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") +
     " Puts in " + (P.sizeHi === P.sizeLo ? P.sizeHi + "% of the wallet per buy" : P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that") + ". " +
@@ -153,6 +163,7 @@ export function stepWallet(W, obs, P, ctx) {
     if (!(o.px > 0) || o.oc === "p" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
     const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24);
+    if ((P.noBoost && o.src && o.src.includes("b")) || (o.hg != null && o.hg > P.maxHG)) continue;
     let viaDip = false;
     if (P.dip > 0) {
       // Pullback entry: a qualifying coin goes on watch; it is bought on a dip from its high once the fall has stopped.
