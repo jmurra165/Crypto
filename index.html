@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meme Radar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column. Status bar, three tallies, then a dense table whose rows open into the reasoning. */
+:root{
+  color-scheme:dark;
+  --bg:#0d1417; --surface:#141e23; --raised:#1b282e; --line:#26363d;
+  --fg:#e4edf0; --muted:#8a9fa7;
+  --accent:#7aa7ff;
+  --buy:#3ecf8e; --sell:#f0616d; --warn:#f2a93d;
+  --buy-bg:rgba(62,207,142,.14); --sell-bg:rgba(240,97,109,.15); --warn-bg:rgba(242,169,61,.15); --mute-bg:rgba(138,159,167,.14);
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f1f5f6; --surface:#ffffff; --raised:#f6f9fa; --line:#d3dee2;
+    --fg:#122027; --muted:#586d76;
+    --accent:#2456c9;
+    --buy:#0c7f4d; --sell:#c22c3b; --warn:#9a5b00;
+    --buy-bg:rgba(12,127,77,.11); --sell-bg:rgba(194,44,59,.10); --warn-bg:rgba(154,91,0,.11); --mute-bg:rgba(88,109,118,.11);
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-block:20px 48px;padding-inline:16px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font:800 30px/1 var(--display);margin:0;letter-spacing:-.02em}
+h1 small{display:block;font:500 13px/1.4 var(--body);color:var(--muted);letter-spacing:0;margin-top:6px}
+.status{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+.dot.live{background:var(--buy)} .dot.err{background:var(--sell)}
+.btn{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:6px 12px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+select,input[type=text]{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+
+.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tally div{border-top:2px solid var(--line);padding-top:8px;min-width:0}
+.tally b{display:block;font:600 26px/1.1 var(--mono)}
+.tally span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tally .t-buy{border-color:var(--buy)} .tally .t-buy b{color:var(--buy)}
+.tally .t-sell{border-color:var(--sell)} .tally .t-sell b{color:var(--sell)}
+.tally .t-rug{border-color:var(--warn)} .tally .t-rug b{color:var(--warn)}
+
+.banner{border:1px solid var(--sell);background:var(--sell-bg);border-radius:6px;padding:10px 14px}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--muted);font-weight:500;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--fg);border-color:var(--accent)}
+.tab .n{font:500 12px var(--mono);margin-left:6px;color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px}
+.filters label{display:flex;gap:6px;align-items:center}
+
+.add{position:relative;display:flex;gap:8px;flex-wrap:wrap}
+.add input{flex:1 1 240px;min-width:0}
+.results{display:flex;flex-direction:column;gap:4px}
+.results button{display:flex;justify-content:space-between;gap:12px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.results button:hover{border-color:var(--accent)}
+
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--raised)}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+tbody tr.row{cursor:pointer}
+tbody tr.row:hover{background:var(--raised)}
+tbody tr:last-child td{border-bottom:0}
+.tok{display:flex;gap:10px;align-items:center;min-width:0}
+.tok img,.tok .ph{width:28px;height:28px;border-radius:50%;flex:none;background:var(--raised);object-fit:cover}
+.tok b{font-weight:600}
+.tok small{display:block;color:var(--muted);font-size:12px;max-width:14ch;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.up{color:var(--buy)} .down{color:var(--sell)}
+.pill{display:inline-block;font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px}
+.p-buy{background:var(--buy-bg);color:var(--buy)}
+.p-sell{background:var(--sell-bg);color:var(--sell)}
+.p-watch{background:var(--mute-bg);color:var(--muted)}
+.p-avoid{background:var(--sell);color:var(--bg)}
+.p-high{background:var(--sell-bg);color:var(--sell)}
+.p-med{background:var(--warn-bg);color:var(--warn)}
+.p-low{background:var(--buy-bg);color:var(--buy)}
+.star{background:none;border:0;font-size:17px;color:var(--muted);padding:2px 6px}
+.star.on{color:var(--warn)}
+.spark{vertical-align:middle;margin-left:8px}
+
+tr.detail td{white-space:normal;text-align:left;background:var(--raised);padding:16px}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px 28px}
+.dgrid h3{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 8px}
+.dgrid ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.dgrid li{display:flex;gap:8px;align-items:baseline}
+.sev{flex:none;width:8px;height:8px;border-radius:2px;background:var(--muted);transform:translateY(-1px)}
+.sev.high{background:var(--sell)} .sev.med{background:var(--warn)} .sev.low{background:var(--muted)} .sev.pos{background:var(--buy)} .sev.neg{background:var(--sell)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--mono)}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.links a{color:var(--accent)}
+.addr{font:12px var(--mono);color:var(--muted);word-break:break-all}
+.empty{padding:36px 16px;text-align:center;color:var(--muted)}
+
+details.method{border-top:1px solid var(--line);padding-top:14px;color:var(--muted);max-width:75ch}
+details.method summary{cursor:pointer;color:var(--fg);font-weight:500}
+details.method p{margin:10px 0 0}
+
+@media (max-width:760px){
+  .c-m5,.c-liq,.c-mc{display:none}
+  th,td{padding:9px 8px}
+  h1{font-size:25px}
+  .tally b{font-size:21px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Meme Radar<small>Solana meme coins from DexScreener, scored for momentum and rug-pull risk</small></h1>
+    <div class="status">
+      <span id="statusText"><span class="dot"></span>Connecting</span>
+      <label>Refresh
+        <select id="interval">
+          <option value="15">15 s</option>
+          <option value="30" selected>30 s</option>
+          <option value="60">1 min</option>
+          <option value="300">5 min</option>
+        </select>
+      </label>
+      <button class="btn" id="refreshNow">Refresh now</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <section class="tally" aria-label="Summary">
+    <div class="t-buy"><b id="nBuy">0</b><span>Buy signals</span></div>
+    <div class="t-sell"><b id="nSell">0</b><span>Sell signals</span></div>
+    <div class="t-rug"><b id="nRug">0</b><span>High rug risk</span></div>
+  </section>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input type="text" id="addInput" placeholder="Add a coin: paste a Solana token address, or search a name like BONK" aria-label="Add a coin">
+    <button class="btn primary" type="submit">Add to watchlist</button>
+  </form>
+  <div class="results" id="results" hidden></div>
+
+  <div class="controls">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tabWatch" data-tab="watch" aria-selected="true">Watchlist<span class="n" id="cWatch">0</span></button>
+      <button class="tab" role="tab" id="tabTrend" data-tab="trend" aria-selected="false">Trending scan<span class="n" id="cTrend">0</span></button>
+    </div>
+    <div class="filters">
+      <label>Sort
+        <select id="sort">
+          <option value="signal">Strongest signal</option>
+          <option value="rug">Highest rug risk</option>
+          <option value="h1">1h change</option>
+          <option value="h24">24h change</option>
+          <option value="liq">Liquidity</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="hideRisky"> Hide high rug risk</label>
+    </div>
+  </div>
+
+  <div class="tablebox">
+    <table>
+      <thead><tr>
+        <th>Coin</th><th class="l">Signal</th><th class="l">Rug risk</th><th>Price</th><th class="c-m5">5m</th><th>1h</th><th>24h</th>
+        <th class="c-liq">Liquidity</th><th class="c-mc">Mkt cap</th><th aria-label="Watchlist"></th>
+      </tr></thead>
+      <tbody id="rows"><tr><td colspan="10" class="empty">Loading prices from DexScreener…</td></tr></tbody>
+    </table>
+  </div>
+
+  <details class="method">
+    <summary>How the signals and rug flags are worked out</summary>
+    <p><b>Signal score</b> runs from −100 to +100. It adds price momentum over 5 minutes, 1 hour and 6 hours, the share of buys among the last hour's trades, and whether the last hour's volume is above the 6-hour average. A coin already up more than 300% in 24 hours is marked down. A score of +35 or more with low rug risk is a buy signal, −30 or less is a sell signal, and anything with high rug risk or under $10k of liquidity is marked Avoid whatever the momentum.</p>
+    <p><b>Rug risk</b> adds up warning signs: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added: mint or freeze authority, holder concentration, and how much of the liquidity pool is locked. 60 or more is High, 30 to 59 is Elevated.</p>
+    <p>These are fixed rules applied to public market data. They cannot see insider wallets, coordinated dumps or news, and a low score does not make a coin safe. Treat the output as a screening aid and not as financial advice. Most meme coins go to zero.</p>
+  </details>
+</div>
+
+<script>
+"use strict";
+const API = "https://api.dexscreener.com";
+const RUGCHECK = "https://api.rugcheck.xyz/v1/tokens/";
+const DEFAULT_WATCH = [
+  "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", // BONK
+  "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", // WIF
+  "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"  // POPCAT
+];
+const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+const S = {
+  watch: load("mr.watch", DEFAULT_WATCH).filter(a => ADDR_RE.test(a)),
+  trend: [], boosts: new Map(),
+  tokens: new Map(), hist: new Map(), rc: new Map(),
+  tab: load("mr.tab", "watch"), sort: load("mr.sort", "signal"), hideRisky: load("mr.hide", false),
+  interval: load("mr.int", 30), expanded: new Set(),
+  lastOk: 0, lastDiscover: 0, error: "", rcFails: 0, rcOff: false, busy: false
+};
+
+function load(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } }
+function save(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const n = x => (typeof x === "number" && isFinite(x)) ? x : 0;
+
+async function getJSON(url){
+  const r = await fetch(url, {headers:{Accept:"application/json"}});
+  if(!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+/* ---------- scoring ---------- */
+function analyse(t, hist, rc, boost){
+  const p = t.pair, now = Date.now();
+  const liq = t.totalLiq, mc = n(p.marketCap) || n(p.fdv);
+  const ch = p.priceChange || {}, tx = p.txns || {}, vol = p.volume || {};
+  const ageH = p.pairCreatedAt ? (now - p.pairCreatedAt) / 36e5 : null;
+  const flags = []; let rug = 0;
+  const flag = (sev, pts, text) => { flags.push({sev, text}); rug += pts; };
+
+  if(!liq){
+    if(/pump/i.test(p.dexId || "")) flag("med", 25, "Still on a launchpad bonding curve, so there is no pooled liquidity yet");
+    else flag("high", 45, "No liquidity reported for this pair");
+  } else if(liq < 5000) flag("high", 40, "Liquidity is only " + money(liq) + ", so a single sale can empty the pool");
+  else if(liq < 25000) flag("med", 15, "Thin liquidity (" + money(liq) + ")");
+
+  if(liq && mc && mc < 2e7){
+    const r = liq / mc;
+    if(r < 0.01) flag("high", 25, "Liquidity is " + (r*100).toFixed(2) + "% of market cap, so most holders could not exit");
+    else if(r < 0.03) flag("med", 12, "Liquidity is only " + (r*100).toFixed(1) + "% of market cap");
+  }
+  if(ageH != null){
+    if(ageH < 1) flag("high", 25, "Pair is under an hour old");
+    else if(ageH < 24) flag("med", 15, "Pair is " + Math.round(ageH) + " hours old");
+    else if(ageH < 72) flag("low", 5, "Pair is under three days old");
+  }
+  if(n(ch.h1) <= -50 || n(ch.h24) <= -80) flag("high", 40, "Price has collapsed (" + pct(ch.h1) + " in 1h, " + pct(ch.h24) + " in 24h); a pull may already have happened");
+
+  const b1 = n(tx.h1 && tx.h1.buys), s1 = n(tx.h1 && tx.h1.sells);
+  if(b1 >= 20 && s1 / b1 < 0.1) flag("high", 35, b1 + " buys and " + s1 + " sells in the last hour; holders may be unable to sell (honeypot pattern)");
+
+  if(liq && liq < 1e5 && n(vol.h24) / liq > 15) flag("med", 12, "24h volume is " + Math.round(n(vol.h24)/liq) + "× liquidity, which can indicate wash trading");
+
+  const info = p.info || {};
+  if(!(info.websites && info.websites.length) && !(info.socials && info.socials.length)) flag("med", 12, "No website or social accounts listed");
+
+  if(hist && hist.peakLiq && liq && liq < hist.peakLiq * 0.7)
+    flag("high", 40, "Liquidity has dropped " + Math.round((1 - liq/hist.peakLiq)*100) + "% since this page started tracking it");
+
+  if(boost >= 100 && ageH != null && ageH < 24) flag("low", 8, "Heavy paid promotion on DexScreener for a new pair");
+
+  let onchain = "pending";
+  if(rc && rc.ok){
+    onchain = "ok";
+    if(rc.rugged) flag("high", 100, "RugCheck has marked this token as rugged");
+    let dangers = 0, warns = 0;
+    (rc.risks || []).forEach(r => {
+      const lvl = String(r.level || "").toLowerCase();
+      const text = "On-chain: " + r.name + (r.description ? ". " + r.description : "");
+      if(lvl === "danger"){ if(dangers++ < 3) flag("high", 30, text); }
+      else if(lvl === "warn"){ if(warns++ < 4) flag("low", 6, text); }
+    });
+    if(typeof rc.lpLockedPct === "number" && rc.lpLockedPct < 50 && mc && mc < 2e7)
+      flag("med", 15, "Only " + rc.lpLockedPct.toFixed(0) + "% of the liquidity pool is locked");
+  } else if(rc && !rc.ok) onchain = "unavailable";
+
+  rug = Math.min(100, Math.round(rug));
+  const rugLevel = rug >= 60 ? "high" : rug >= 30 ? "med" : "low";
+
+  /* momentum signal */
+  const why = []; let score = 0;
+  const add = (pts, text) => { score += pts; if(Math.abs(pts) >= 4) why.push({pts, text}); };
+  add(clamp(n(ch.m5), -10, 10) * 1.5, "Price " + pct(ch.m5) + " in 5 minutes");
+  add(clamp(n(ch.h1), -30, 30) * 1.2, "Price " + pct(ch.h1) + " in 1 hour");
+  add(clamp(n(ch.h6), -50, 50) * 0.4, "Price " + pct(ch.h6) + " in 6 hours");
+  if(b1 + s1 >= 20){
+    const share = b1 / (b1 + s1);
+    add((share - 0.5) * 120, Math.round(share*100) + "% of the last hour's " + (b1+s1) + " trades were buys");
+  }
+  if(n(vol.h6) > 0){
+    const accel = n(vol.h1) / (n(vol.h6) / 6);
+    add(clamp((accel - 1) * 15, -15, 20), "Last hour's volume is " + accel.toFixed(1) + "× the 6-hour average");
+  }
+  if(n(ch.h24) > 300) add(-20, "Already up " + pct(ch.h24) + " in 24 hours, so late entries carry more downside");
+  score = Math.round(clamp(score, -100, 100));
+  why.sort((a, b) => Math.abs(b.pts) - Math.abs(a.pts));
+
+  let signal;
+  if(rugLevel === "high" || (liq && liq < 10000) || !liq) signal = "avoid";
+  else if(score <= -30) signal = "sell";
+  else if(score >= 35 && rugLevel === "low") signal = "buy";
+  else signal = "watch";
+  if(signal === "watch" && score >= 35) why.unshift({pts:0, text:"Momentum is strong but rug risk is elevated, so this stays on watch"});
+  if(signal === "avoid") why.unshift({pts:-1, text:"Marked Avoid on rug risk or liquidity, whatever the momentum"});
+
+  return {score, signal, why, rug, rugLevel, flags, onchain, ageH, liq, mc};
+}
+
+/* ---------- formatting ---------- */
+function money(x){
+  x = n(x); if(!x) return "—";
+  if(x >= 1e9) return "$" + (x/1e9).toFixed(2) + "B";
+  if(x >= 1e6) return "$" + (x/1e6).toFixed(2) + "M";
+  if(x >= 1e3) return "$" + (x/1e3).toFixed(1) + "k";
+  return "$" + x.toFixed(0);
+}
+function price(x){
+  x = Number(x); if(!isFinite(x) || x <= 0) return "—";
+  if(x >= 1) return "$" + x.toFixed(2);
+  if(x >= 0.01) return "$" + x.toFixed(4);
+  return "$" + x.toFixed(Math.min(14, 2 - Math.floor(Math.log10(x))));
+}
+function pct(x){ if(typeof x !== "number" || !isFinite(x)) return "—"; return (x > 0 ? "+" : "") + (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(1)) + "%"; }
+function pctCell(x, cls){ const c = typeof x !== "number" ? "muted" : x > 0 ? "up" : x < 0 ? "down" : "muted"; return '<td class="num ' + c + (cls ? " " + cls : "") + '">' + pct(x) + "</td>"; }
+function age(h){ if(h == null) return "unknown"; if(h < 1) return Math.max(1, Math.round(h*60)) + " min"; if(h < 48) return Math.round(h) + " h"; if(h < 24*60) return Math.round(h/24) + " days"; return (h/24/365).toFixed(1) + " yr"; }
+function spark(hist){
+  if(!hist || hist.pts.length < 3) return "";
+  const v = hist.pts.map(p => p.price), lo = Math.min(...v), hi = Math.max(...v), w = 56, h = 18;
+  const pts = v.map((y, i) => (i/(v.length-1)*w).toFixed(1) + "," + (hi === lo ? h/2 : h - 1 - (y-lo)/(hi-lo)*(h-2)).toFixed(1)).join(" ");
+  const col = v[v.length-1] >= v[0] ? "var(--buy)" : "var(--sell)";
+  return '<svg class="spark" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + " " + h + '" aria-hidden="true"><polyline points="' + pts + '" fill="none" stroke="' + col + '" stroke-width="1.5"/></svg>';
+}
+const SIG = {buy:["p-buy","Buy signal"], sell:["p-sell","Sell signal"], watch:["p-watch","Watch"], avoid:["p-avoid","Avoid"]};
+const RUG = {high:["p-high","High"], med:["p-med","Elevated"], low:["p-low","Low"]};
+const safeUrl = u => (typeof u === "string" && /^https:\/\//.test(u)) ? u : "";
+
+/* ---------- data ---------- */
+async function discover(){
+  const eps = ["/token-boosts/top/v1", "/token-boosts/latest/v1", "/token-profiles/latest/v1"];
+  const res = await Promise.allSettled(eps.map(e => getJSON(API + e)));
+  const seen = new Set(), list = [];
+  res.forEach(r => {
+    if(r.status !== "fulfilled" || !Array.isArray(r.value)) return;
+    r.value.forEach(x => {
+      if(!x || x.chainId !== "solana" || !ADDR_RE.test(x.tokenAddress || "")) return;
+      if(x.totalAmount) S.boosts.set(x.tokenAddress, Math.max(S.boosts.get(x.tokenAddress) || 0, n(x.totalAmount)));
+      if(!seen.has(x.tokenAddress)){ seen.add(x.tokenAddress); list.push(x.tokenAddress); }
+    });
+  });
+  if(list.length){ S.trend = list.slice(0, 30); S.lastDiscover = Date.now(); }
+  else if(res.every(r => r.status === "rejected")) throw new Error("discovery failed");
+}
+
+async function loadPrices(){
+  const addrs = [...new Set([...S.watch, ...S.trend])];
+  const chunks = []; for(let i = 0; i < addrs.length; i += 30) chunks.push(addrs.slice(i, i + 30));
+  const res = await Promise.allSettled(chunks.map(c => getJSON(API + "/tokens/v1/solana/" + c.join(","))));
+  if(chunks.length && res.every(r => r.status === "rejected")) throw new Error("prices failed");
+  const by = new Map();
+  res.forEach(r => {
+    if(r.status !== "fulfilled" || !Array.isArray(r.value)) return;
+    r.value.forEach(p => {
+      const a = p && p.baseToken && p.baseToken.address; if(!a) return;
+      if(!by.has(a)) by.set(a, []); by.get(a).push(p);
+    });
+  });
+  const now = Date.now();
+  by.forEach((pairs, a) => {
+    pairs.sort((x, y) => n(y.liquidity && y.liquidity.usd) - n(x.liquidity && x.liquidity.usd));
+    const totalLiq = pairs.reduce((s, p) => s + n(p.liquidity && p.liquidity.usd), 0);
+    S.tokens.set(a, {addr:a, pair:pairs[0], totalLiq, nPairs:pairs.length});
+    const h = S.hist.get(a) || {pts:[], peakLiq:0};
+    h.pts.push({t:now, price:Number(pairs[0].priceUsd) || 0}); if(h.pts.length > 120) h.pts.shift();
+    h.peakLiq = Math.max(h.peakLiq, totalLiq);
+    S.hist.set(a, h);
+  });
+}
+
+let rcRunning = false;
+async function rugcheckQueue(){
+  if(rcRunning || S.rcOff) return; rcRunning = true;
+  const order = [...S.watch, ...S.trend];
+  for(const a of order){
+    if(S.rcOff) break;
+    const c = S.rc.get(a);
+    if(c && Date.now() - c.at < 15*60e3) continue;
+    try{
+      const j = await getJSON(RUGCHECK + a + "/report/summary");
+      S.rc.set(a, {ok:true, at:Date.now(), risks:Array.isArray(j.risks) ? j.risks : [], lpLockedPct:j.lpLockedPct, rugged:!!j.rugged});
+      S.rcFails = 0;
+    }catch(e){
+      S.rc.set(a, {ok:false, at:Date.now()});
+      if(++S.rcFails >= 3){ S.rcOff = true; }
+    }
+    render();
+    await new Promise(r => setTimeout(r, 400));
+  }
+  rcRunning = false;
+}
+
+async function tick(force){
+  if(S.busy) return; S.busy = true;
+  try{
+    if(force || Date.now() - S.lastDiscover > 5*60e3){ try{ await discover(); }catch(e){ if(!S.trend.length) throw e; } }
+    await loadPrices();
+    S.lastOk = Date.now(); S.error = "";
+  }catch(e){
+    S.error = "Couldn't reach DexScreener. Check your connection; the page will keep retrying.";
+  }
+  S.busy = false; nextAt = Date.now() + S.interval * 1000;
+  render(); rugcheckQueue();
+}
+
+/* ---------- render ---------- */
+function rowsFor(tab){
+  const ids = tab === "watch" ? S.watch : S.trend;
+  return ids.map(a => {
+    const t = S.tokens.get(a);
+    return t ? {t, a: analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0)} : {addr:a, missing:true};
+  });
+}
+function render(){
+  const all = new Map();
+  [...S.watch, ...S.trend].forEach(a => { const t = S.tokens.get(a); if(t && !all.has(a)) all.set(a, analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0)); });
+  let nb = 0, ns = 0, nr = 0; all.forEach(x => { if(x.signal === "buy") nb++; if(x.signal === "sell") ns++; if(x.rugLevel === "high") nr++; });
+  $("nBuy").textContent = nb; $("nSell").textContent = ns; $("nRug").textContent = nr;
+  $("cWatch").textContent = S.watch.length; $("cTrend").textContent = S.trend.length;
+  $("tabWatch").setAttribute("aria-selected", S.tab === "watch"); $("tabTrend").setAttribute("aria-selected", S.tab === "trend");
+  const b = $("banner"); b.hidden = !S.error; b.textContent = S.error;
+
+  let rows = rowsFor(S.tab);
+  const loaded = rows.filter(r => !r.missing), missing = rows.filter(r => r.missing);
+  let shown = S.hideRisky ? loaded.filter(r => r.a.rugLevel !== "high") : loaded;
+  const key = {
+    signal: r => r.a.signal === "avoid" ? -1000 + r.a.score : Math.abs(r.a.score) + (r.a.signal === "buy" || r.a.signal === "sell" ? 200 : 0),
+    rug: r => r.a.rug, h1: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h1),
+    h24: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h24), liq: r => r.t.totalLiq
+  }[S.sort] || (r => 0);
+  shown.sort((x, y) => key(y) - key(x));
+
+  const body = $("rows");
+  if(!shown.length && !missing.length){
+    body.innerHTML = '<tr><td colspan="10" class="empty">' + (
+      !S.lastOk ? (S.error ? "No data yet." : "Loading prices from DexScreener…")
+      : S.tab === "watch" ? "Your watchlist is empty. Add a coin above, or star one in the trending scan."
+      : loaded.length ? "Every coin in this scan is high rug risk. Untick the filter to see them." : "No trending Solana coins found right now.") + "</td></tr>";
+    return;
+  }
+  let h = "";
+  shown.forEach(({t, a}) => {
+    const p = t.pair, ch = p.priceChange || {}, bt = p.baseToken || {}, on = S.watch.includes(t.addr);
+    const img = safeUrl(p.info && p.info.imageUrl);
+    h += '<tr class="row" data-a="' + esc(t.addr) + '" tabindex="0" aria-expanded="' + S.expanded.has(t.addr) + '">' +
+      '<td><div class="tok">' + (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="ph"></span>') +
+      "<div><b>" + esc(bt.symbol || "?") + "</b><small>" + esc(bt.name || "") + "</small></div></div></td>" +
+      '<td class="l"><span class="pill ' + SIG[a.signal][0] + '">' + SIG[a.signal][1] + '</span> <span class="num muted">' + (a.score > 0 ? "+" : "") + a.score + "</span></td>" +
+      '<td class="l"><span class="pill ' + RUG[a.rugLevel][0] + '">' + RUG[a.rugLevel][1] + '</span> <span class="num muted">' + a.rug + "</span></td>" +
+      '<td class="num">' + price(p.priceUsd) + spark(S.hist.get(t.addr)) + "</td>" +
+      pctCell(ch.m5, "c-m5") + pctCell(ch.h1) + pctCell(ch.h24) +
+      '<td class="num c-liq">' + money(t.totalLiq) + "</td>" +
+      '<td class="num c-mc">' + money(a.mc) + "</td>" +
+      '<td><button class="star' + (on ? " on" : "") + '" data-star="' + esc(t.addr) + '" title="' + (on ? "Remove from watchlist" : "Add to watchlist") + '" aria-label="' + (on ? "Remove from watchlist" : "Add to watchlist") + '">' + (on ? "★" : "☆") + "</button></td></tr>";
+    if(S.expanded.has(t.addr)) h += detail(t, a);
+  });
+  missing.forEach(m => {
+    h += '<tr><td colspan="9" class="muted" style="text-align:left"><span class="addr">' + esc(m.addr) + "</span> " + (S.lastOk ? "has no trading pair on DexScreener" : "loading…") +
+      '</td><td><button class="star on" data-star="' + esc(m.addr) + '" aria-label="Remove from watchlist">★</button></td></tr>';
+  });
+  body.innerHTML = h;
+}
+function detail(t, a){
+  const p = t.pair, tx = (p.txns && p.txns.h1) || {}, vol = p.volume || {};
+  const why = a.why.length ? a.why.map(w => '<li><span class="sev ' + (w.pts > 0 ? "pos" : w.pts < 0 ? "neg" : "low") + '"></span><span>' + esc(w.text) + "</span></li>").join("") : '<li><span class="sev low"></span><span>No strong move in either direction</span></li>';
+  const flags = a.flags.length ? a.flags.map(f => '<li><span class="sev ' + f.sev + '"></span><span>' + esc(f.text) + "</span></li>").join("") : '<li><span class="sev pos"></span><span>No warning signs in the market data</span></li>';
+  const oc = a.onchain === "ok" ? "" : '<li><span class="sev low"></span><span class="muted">' + (a.onchain === "pending" && !S.rcOff ? "On-chain check from RugCheck still loading" : "On-chain check from RugCheck unavailable, so mint authority, holder concentration and LP lock were not checked") + "</span></li>";
+  const dex = safeUrl(p.url);
+  return '<tr class="detail"><td colspan="10"><div class="dgrid">' +
+    "<div><h3>Why this signal</h3><ul>" + why + "</ul></div>" +
+    "<div><h3>Rug-pull checks</h3><ul>" + flags + oc + "</ul></div>" +
+    '<div><h3>Market</h3><dl class="kv">' +
+      "<dt>Liquidity</dt><dd>" + money(t.totalLiq) + (t.nPairs > 1 ? " across " + t.nPairs + " pools" : "") + "</dd>" +
+      "<dt>Market cap</dt><dd>" + money(a.mc) + "</dd>" +
+      "<dt>Volume 24h</dt><dd>" + money(vol.h24) + "</dd>" +
+      "<dt>Trades 1h</dt><dd>" + n(tx.buys) + " buys / " + n(tx.sells) + " sells</dd>" +
+      "<dt>Pair age</dt><dd>" + age(a.ageH) + "</dd>" +
+      "<dt>Exchange</dt><dd>" + esc(p.dexId || "—") + "</dd></dl></div></div>" +
+    '<div class="links">' + (dex ? '<a href="' + esc(dex) + '" target="_blank" rel="noopener noreferrer">Chart on DexScreener</a>' : "") +
+    '<a href="https://rugcheck.xyz/tokens/' + esc(t.addr) + '" target="_blank" rel="noopener noreferrer">Full RugCheck report</a></div>' +
+    '<div class="addr" style="margin-top:8px">' + esc(t.addr) + "</div></td></tr>";
+}
+
+/* ---------- interactions ---------- */
+function toggleWatch(a){
+  const i = S.watch.indexOf(a);
+  if(i >= 0) S.watch.splice(i, 1); else S.watch.unshift(a);
+  save("mr.watch", S.watch); render();
+  if(i < 0 && !S.tokens.has(a)) tick(false);
+}
+$("rows").addEventListener("click", e => {
+  const st = e.target.closest("[data-star]");
+  if(st){ toggleWatch(st.dataset.star); return; }
+  if(e.target.closest("a")) return;
+  const r = e.target.closest("tr.row"); if(!r) return;
+  const a = r.dataset.a; S.expanded.has(a) ? S.expanded.delete(a) : S.expanded.add(a); render();
+});
+$("rows").addEventListener("keydown", e => {
+  if((e.key === "Enter" || e.key === " ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }
+});
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { S.tab = t.dataset.tab; save("mr.tab", S.tab); render(); }));
+$("sort").value = S.sort; $("sort").addEventListener("change", e => { S.sort = e.target.value; save("mr.sort", S.sort); render(); });
+$("hideRisky").checked = !!S.hideRisky; $("hideRisky").addEventListener("change", e => { S.hideRisky = e.target.checked; save("mr.hide", S.hideRisky); render(); });
+$("interval").value = String(S.interval); if(!$("interval").value){ $("interval").value = "30"; S.interval = 30; }
+$("interval").addEventListener("change", e => { S.interval = Number(e.target.value) || 30; save("mr.int", S.interval); nextAt = Date.now() + S.interval*1000; });
+$("refreshNow").addEventListener("click", () => tick(true));
+
+$("addForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = $("addInput").value.trim(), box = $("results"); if(!q) return;
+  if(ADDR_RE.test(q)){
+    if(!S.watch.includes(q)) toggleWatch(q);
+    S.tab = "watch"; $("addInput").value = ""; box.hidden = true; render(); return;
+  }
+  box.hidden = false; box.textContent = "Searching…";
+  try{
+    const j = await getJSON(API + "/latest/dex/search?q=" + encodeURIComponent(q));
+    const best = new Map();
+    (j.pairs || []).forEach(p => {
+      if(p.chainId !== "solana" || !p.baseToken) return;
+      const a = p.baseToken.address, l = n(p.liquidity && p.liquidity.usd);
+      if(!best.has(a) || l > best.get(a).l) best.set(a, {p, l});
+    });
+    const top = [...best.values()].sort((x, y) => y.l - x.l).slice(0, 6);
+    if(!top.length){ box.textContent = "No Solana coins found for that name."; return; }
+    box.innerHTML = top.map(({p, l}) => '<button type="button" data-add="' + esc(p.baseToken.address) + '"><span><b>' + esc(p.baseToken.symbol) + "</b> " + esc(p.baseToken.name) +
+      '</span><span class="num muted">' + money(l) + " liquidity</span></button>").join("") +
+      '<span class="muted" style="font-size:12px">Copycat coins reuse popular names. Check the liquidity and address before adding.</span>';
+  }catch(err){ box.textContent = "Search failed. Try again, or paste the token address."; }
+});
+$("results").addEventListener("click", e => {
+  const b = e.target.closest("[data-add]"); if(!b) return;
+  if(!S.watch.includes(b.dataset.add)) toggleWatch(b.dataset.add);
+  S.tab = "watch"; $("results").hidden = true; $("addInput").value = ""; render();
+});
+
+/* ---------- clock ---------- */
+let nextAt = 0;
+setInterval(() => {
+  const el = $("statusText"), now = Date.now();
+  if(!document.hidden && now >= nextAt && !S.busy) tick(false);
+  const left = Math.max(0, Math.ceil((nextAt - now)/1000));
+  if(S.error) el.innerHTML = '<span class="dot err"></span>Offline, retrying in ' + left + " s";
+  else if(S.lastOk) el.innerHTML = '<span class="dot live"></span>Updated ' + new Date(S.lastOk).toLocaleTimeString() + ", next in " + left + " s";
+}, 1000);
+render();
+tick(true);
+</script>
+</body>
+</html>
