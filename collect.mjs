@@ -59,21 +59,22 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     });
   });
   if (disc.every(r => r.status === "rejected")) errors.push("trending list failed");
-  const gtList = async (pq, pages) => {
-    const out = [];
-    for (let p = 1; p <= pages; p++) {
-      let j;
-      try { j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p); }
-      catch (e) { if (!out.length) throw e; errors.push(pq.split("?")[0] + " stopped at page " + p + " (" + e.message + ")"); break; }
-      (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
-      await sleep(pause * 7);
-    }
+  // GeckoTerminal allows only a few calls a minute from here, so each run asks for the new pairs
+  // plus one page of each longer list, and pages from earlier runs are remembered for three hours.
+  const gtPage = async (pq, p) => {
+    const j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p), out = [];
+    (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
     return out;
   };
-  let fresh = [], gtTrend = [], vol = [];
-  try { fresh = await gtList("/new_pools", 1); } catch (e) { errors.push("new pairs list failed (" + e.message + ")"); }
-  try { gtTrend = await gtList("/trending_pools", 3); } catch (e) { errors.push("trending pools list failed (" + e.message + ")"); }
-  try { vol = await gtList("/pools?sort=h24_volume_usd_desc", 4); } catch (e) { errors.push("top volume list failed (" + e.message + ")"); }
+  const lists = cache.lists || { trend: {}, vol: {} }, runNo = (cache.run || 0) + 1;
+  const pool = set => [...new Set(Object.values(set).filter(e => e && now - e.at < 3 * 3600e3).flatMap(e => e.ids))];
+  let fresh = [];
+  try { fresh = await gtPage("/new_pools", 1); } catch (e) { errors.push("new pairs list failed (" + e.message + ")"); }
+  await sleep(pause * 8);
+  try { const p = (runNo % 3) + 1; lists.trend[p] = { at: now, ids: await gtPage("/trending_pools", p) }; } catch (e) { errors.push("trending pools page failed (" + e.message + ")"); }
+  await sleep(pause * 8);
+  try { const p = (runNo % 4) + 1; lists.vol[p] = { at: now, ids: await gtPage("/pools?sort=h24_volume_usd_desc", p) }; } catch (e) { errors.push("top volume page failed (" + e.message + ")"); }
+  const gtTrend = pool(lists.trend), vol = pool(lists.vol);
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
   const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
 
@@ -99,6 +100,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
     fs.writeFileSync(path.join(dataDir, "signals.json"), JSON.stringify({ meta, signals }));
+    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo }));
     return { meta, signals };
   }
   meta.lastGood = now;
@@ -197,7 +199,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const live = new Set(ids);
   Object.keys(peak).forEach(a => { if (!live.has(a)) delete peak[a]; });
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
-  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache }));
+  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo }));
+  fs.writeFileSync(path.join(dataDir, "coins.json"), JSON.stringify({ t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) }));
   return { meta, signals: keep };
 }
 

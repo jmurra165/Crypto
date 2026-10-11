@@ -435,6 +435,7 @@ const ADDR_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const BUY_AT = 35, SELL_AT = -30, RUG_HIGH = 60, RUG_MED = 30;
 /*<CORE*/
 const GT = "https://api.geckoterminal.com/api/v2/networks/solana";
+const BG_URL = "https://raw.githubusercontent.com/jmurra165/Crypto/data/signals.json";
 const SOL = "So11111111111111111111111111111111111111112";
 const TF = {"5m":["minute",5], "15m":["minute",15], "1h":["hour",1], "4h":["hour",4], "1d":["day",1]};
 
@@ -717,19 +718,29 @@ async function discover(){
 
 /* Stablecoins, SOL and staking tokens that turn up in volume lists but are not what this page is for */
 const SKIP = new Set([SOL, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"]);
-async function gtList(pathAndQuery, pages){
-  const out = [];
-  for(let p = 1; p <= pages; p++){
-    let j; try{ j = await getJSON(GT + pathAndQuery + (pathAndQuery.includes("?") ? "&" : "?") + "page=" + p); }catch(e){ if(!out.length) throw e; break; }
-    (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if(ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
-    await new Promise(r => setTimeout(r, 900));
-  }
+async function gtPage(pathAndQuery, p){
+  const j = await getJSON(GT + pathAndQuery + (pathAndQuery.includes("?") ? "&" : "?") + "page=" + p), out = [];
+  (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if(ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
   return out;
 }
+/* The wider lists come from the background tracker's saved coin list, which costs this page no
+   GeckoTerminal calls. If that is missing or stale, the page builds them up itself a page at a time. */
+const gtPg = {trend: {}, vol: {}}; let gtRun = 0;
 async function loadFresh(){
-  try{ const l = await gtList("/new_pools", 1); if(l.length){ S.fresh = l.slice(0, 20); S.freshErr = false; } }catch(e){ S.freshErr = true; }
-  try{ const l = await gtList("/trending_pools", 3); if(l.length) S.gtTrend = l.slice(0, 60); }catch(e){}
-  try{ const l = await gtList("/pools?sort=h24_volume_usd_desc", 4); if(l.length) S.vol = l.slice(0, 70); }catch(e){}
+  try{ const l = await gtPage("/new_pools", 1); if(l.length){ S.fresh = l.slice(0, 20); S.freshErr = false; } }catch(e){ S.freshErr = true; }
+  try{
+    const j = await getJSON(BG_URL.replace("signals.json", "coins.json") + "?t=" + Math.floor(Date.now() / 300e3));
+    if(j && Date.now() - j.t < 2 * 3600e3 && Array.isArray(j.trend) && Array.isArray(j.vol)){
+      S.gtTrend = j.trend.filter(a => ADDR_RE.test(a)).slice(0, 60); S.vol = j.vol.filter(a => ADDR_RE.test(a)).slice(0, 80);
+      if(!S.fresh.length && Array.isArray(j.fresh)){ S.fresh = j.fresh.filter(a => ADDR_RE.test(a)).slice(0, 20); S.freshErr = false; }
+      return;
+    }
+  }catch(e){}
+  gtRun++;
+  const pool = set => [...new Set(Object.values(set).flat())];
+  try{ const p = (gtRun % 3) + 1; gtPg.trend[p] = await gtPage("/trending_pools", p); S.gtTrend = pool(gtPg.trend).slice(0, 60); }catch(e){}
+  await new Promise(r => setTimeout(r, 1500));
+  try{ const p = (gtRun % 4) + 1; gtPg.vol[p] = await gtPage("/pools?sort=h24_volume_usd_desc", p); S.vol = pool(gtPg.vol).slice(0, 80); }catch(e){}
 }
 
 async function loadPrices(){
@@ -1293,7 +1304,6 @@ S.rec = load("mr.rec", []); if(!Array.isArray(S.rec)) S.rec = [];
 S.rec.forEach(r => { if(!r.st) r.st = "open"; if(!(r.hi > 0)) r.hi = r.px; if(!(r.lo > 0)) r.lo = r.px; if(!(r.last > 0)) r.last = r.px; if(!r.r) r.r = {}; });
 S.sf = "all";
 const HZ = {h1: 3600e3, h6: 6 * 3600e3, h24: 24 * 3600e3};
-const BG_URL = "https://raw.githubusercontent.com/jmurra165/Crypto/data/signals.json";
 S.recSrc = load("mr.src", "bg"); S.bg = null; let bgAt = 0;
 const recs = () => S.recSrc === "bg" && S.bg ? S.bg.signals : S.rec;
 async function loadBg(){
