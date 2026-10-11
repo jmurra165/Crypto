@@ -4,6 +4,7 @@
 // records every buy signal and follows it until it exits. Output goes to data/signals.json.
 import fs from "node:fs";
 import path from "node:path";
+import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -24,6 +25,7 @@ async function realGetJSON(url) {
     return await r.json();
   } finally { clearTimeout(timer); }
 }
+const SKIP = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB", "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn"]);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const num = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 function readJSON(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return fallback; } }
@@ -57,13 +59,21 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     });
   });
   if (disc.every(r => r.status === "rejected")) errors.push("trending list failed");
-  let fresh = [];
-  try {
-    const j = await getJSON(GT + "/new_pools?page=1");
-    fresh = (j.data || []).map(d => String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, "")).filter(a => ADDR_RE.test(a));
-  } catch (e) { errors.push("new pairs list failed"); }
+  const gtList = async (pq, pages) => {
+    const out = [];
+    for (let p = 1; p <= pages; p++) {
+      const j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p);
+      (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
+      await sleep(pause);
+    }
+    return out;
+  };
+  let fresh = [], gtTrend = [], vol = [];
+  try { fresh = await gtList("/new_pools", 1); } catch (e) { errors.push("new pairs list failed"); }
+  try { gtTrend = await gtList("/trending_pools", 3); } catch (e) { errors.push("trending pools list failed"); }
+  try { vol = await gtList("/pools?sort=h24_volume_usd_desc", 4); } catch (e) { errors.push("top volume list failed"); }
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
-  const ids = [...new Set([...watch, ...trend.slice(0, 30), ...fresh.slice(0, 20), ...openIds])];
+  const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
 
   // 2. Prices
   const tokens = new Map(); let priceOk = false;
@@ -99,7 +109,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     if (openIds.includes(a) || (x.score >= BUY_AT && x.liq >= 10000 && x.rugLevel !== "high")) need.push(a);
   });
   let rcFails = 0;
-  for (const a of need.slice(0, 30)) {
+  for (const a of need.slice(0, 40)) {
     const c = rcCache[a];
     if (c && now - c.at < 25 * 60e3) continue;
     if (rcFails >= 3) break;
@@ -157,6 +167,27 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   });
   meta.buysNow = buysNow;
   meta.open = signals.filter(r => r.st === "open").length;
+
+  // 6b. Keep a snapshot of every coin's inputs and verdict, so rule changes can later be replayed
+  //     against exactly what the tracker saw at the time. One compressed file per day.
+  try {
+    const snapDir = path.join(dataDir, "snap"); fs.mkdirSync(snapDir, { recursive: true });
+    const day = new Date(now).toISOString().slice(0, 10), file = path.join(snapDir, day + ".jsonl.gz");
+    const r3 = v => (typeof v === "number" && isFinite(v)) ? Math.round(v * 1000) / 1000 : null;
+    const rows = [];
+    A.forEach((x, a) => {
+      const p = tokens.get(a).pair, ch = p.priceChange || {}, tx = p.txns || {}, v = p.volume || {};
+      rows.push([a, x.px, Math.round(num(x.liq)), Math.round(num(x.mc)), r3(x.ageH), r3(ch.m5), r3(ch.h1), r3(ch.h6), r3(ch.h24),
+        num(tx.h1 && tx.h1.buys), num(tx.h1 && tx.h1.sells), num(tx.h6 && tx.h6.buys), num(tx.h6 && tx.h6.sells),
+        Math.round(num(v.h1)), Math.round(num(v.h6)), Math.round(num(v.h24)), x.score, x.rug, x.signal[0], x.checks.map(k => k.state[0]).join(""), x.onchain[0]]);
+    });
+    const prev = fs.existsSync(file) ? zlib.gunzipSync(fs.readFileSync(file)).toString("utf8") : "";
+    fs.writeFileSync(file, zlib.gzipSync(prev + JSON.stringify({ t: now, rows }) + "\n", { level: 9 }));
+    fs.readdirSync(snapDir).forEach(f => { const d = Date.parse(f.slice(0, 10)); if (isFinite(d) && now - d > 60 * 86400e3) fs.unlinkSync(path.join(snapDir, f)); });
+    if (!fs.existsSync(path.join(snapDir, "README.txt"))) fs.writeFileSync(path.join(snapDir, "README.txt"),
+      "One line per tracker run: {t, rows}. Each row: address, priceUsd, liquidityUsd, marketCap, pairAgeHours, change m5, h1, h6, h24 (%), buys 1h, sells 1h, buys 6h, sells 6h, volume 1h, 6h, 24h (USD), score, rugScore, verdict initial (b/h/s/r/a), the 12 checks in page order (p/f/n), on-chain status (o/p/u).\n");
+    meta.snapshot = rows.length;
+  } catch (e) { errors.push("snapshot not saved"); }
 
   // 7. Save. Keep every open signal and the most recent closed ones.
   const keep = signals.filter(r => r.st === "open").concat(signals.filter(r => r.st !== "open").slice(0, 500)).sort((p, q) => q.t - p.t);
