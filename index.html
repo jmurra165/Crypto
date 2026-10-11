@@ -159,7 +159,7 @@ tr.detail ul.cl li{align-items:center}
 tr.detail ul.hl li{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:13px}
 .hl a{color:var(--accent);font-family:var(--mono)} .hl em{font-style:normal;color:var(--warn);font-size:11px;margin-left:6px}
 .hb{height:6px;background:var(--surface);border-radius:2px;overflow:hidden} .hb i{display:block;height:100%;background:var(--accent)}
-#recBox{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
+#recBox,#demoBox{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
 .rechd{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
 .recstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
 .recstats div{border-top:2px solid var(--line);padding-top:8px}
@@ -186,7 +186,7 @@ canvas.chart{display:block;width:100%;height:300px;touch-action:pan-y}
 details.fold{border-top:1px solid var(--line);padding-top:14px;color:var(--muted);max-width:80ch}
 details.fold summary{cursor:pointer;color:var(--fg);font-weight:500}
 details.fold p{margin:10px 0 0}
-#log{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13px}
+#log,#demoHist{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13px}
 
 @media (max-width:760px){
   .c-m5,.c-liq,.c-mc,.short{display:none}
@@ -267,6 +267,15 @@ details.fold p{margin:10px 0 0}
     </table>
   </div>
 
+  <section id="demoBox">
+    <div class="rechd"><h2>Demo wallet, play money</h2>
+      <div class="filters"><label>Starting balance, $ <input type="text" inputmode="decimal" id="demoStart" style="width:96px;text-align:right"></label><button class="btn small" id="demoReset">Reset wallet</button></div></div>
+    <p id="demoNote" class="muted" style="margin:0;max-width:80ch"></p>
+    <div class="recstats" id="demoStats"></div>
+    <div class="tablebox" id="demoTableBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th>Paid</th><th>Value if sold now</th><th>Profit or loss</th><th></th></tr></thead><tbody id="demoRows"></tbody></table></div>
+    <details class="fold" style="border-top:0;padding-top:0"><summary>Demo trade history <span class="num muted" id="demoHN">0</span></summary><ul id="demoHist"><li class="muted">No demo trades yet.</li></ul></details>
+  </section>
+
   <section id="recBox">
     <div class="rechd"><h2>Track record of buy signals</h2><button class="btn small" id="recClear">Clear record</button></div>
     <p id="recNote"></p>
@@ -285,6 +294,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Signal score</b> runs from −100 to +100 and now leans on trading flow more than price: price change over 5 minutes (up to ±10), 1 hour (±24) and 6 hours (±16); buy pressure, the share of the last hour's trades that were buys (±45, needs 20 or more trades); sustained buying over 6 hours (±20, needs 50 or more trades); volume trend against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours.</p>
     <p><b>Buy</b> needs a score of +35 or more, low rug risk, and no more than one failed safety check. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
     <p><b>Confidence</b> on a buy is strong at 10 or more checks passed, moderate at 8 or 9, and weak below that. It is capped at moderate when the on-chain checks could not be loaded.</p>
+    <p><b>Demo wallet</b> uses play money and never touches a real wallet. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
     <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
     <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
     <p><b>Chart read</b> uses the candles on the timeframe you pick: RSI over 14 candles, the 9 and 21 candle moving averages, the volume-weighted average price, recent volume against earlier volume, and where the price sits between the low (support) and high (resistance) of the previous 20 candles. It is shown beside the verdict as a second opinion and does not change the score.</p>
@@ -330,7 +340,10 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const n = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 const sg = x => (x > 0 ? "+" : "") + x;
-const allIds = () => [...new Set([...S.watch, ...S.trend, ...S.fresh])];
+S.demo = load("mr.demo", null);
+if(!S.demo || typeof S.demo !== "object" || !S.demo.pos || !Array.isArray(S.demo.hist)) S.demo = {start: 1000, cash: 1000, pos: {}, hist: []};
+S.demoAmt = load("mr.damt", 50); S.demoMsg = "";
+const allIds = () => [...new Set([...S.watch, ...S.trend, ...S.fresh, ...Object.keys(S.demo.pos)])].filter(a => ADDR_RE.test(a));
 if(!TF[S.tf]) S.tf = "15m";
 
 async function getJSON(url){
@@ -912,6 +925,82 @@ function tradesBlock(t, a){
   return '<div class="trades"><h3>Recent trades</h3>' + inner + "</div>";
 }
 
+/* ---------- demo wallet ---------- */
+const FEE = 0.01;
+function quoteBuy(a, usdIn){ const x = S.A.get(a); if(!x || !(x.px > 0) || !(usdIn > 0)) return null; const imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp); return {imp, fill, qty: usdIn * (1 - FEE) / fill}; }
+function quoteSell(a, qty){ const x = S.A.get(a); if(!x || !(x.px > 0)) return null; const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return {imp, px: x.px, out: gross * (1 - imp) * (1 - FEE)}; }
+function demoQuoteText(a){
+  const amt = Number(S.demoAmt), q = quoteBuy(a, amt), x = S.A.get(a);
+  let s2 = "Demo cash: " + usd(S.demo.cash) + ". ";
+  if(!(amt > 0)) return s2 + "Enter an amount to buy.";
+  if(!q) return s2 + "No live price for this coin.";
+  s2 += "A " + usd(amt) + " buy would fill about " + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% above the quoted price, plus 1% costs.";
+  if(x && (x.signal === "rug" || x.signal === "avoid")) s2 += " This coin is marked " + SIG[x.signal][1] + ".";
+  return s2;
+}
+function demoBuy(a){
+  const amt = Number(S.demoAmt), t = S.tokens.get(a), x = S.A.get(a);
+  if(!(amt > 0)) return "Enter an amount first.";
+  if(amt > S.demo.cash + 1e-9) return "Not enough demo cash. You have " + usd(S.demo.cash) + ".";
+  const q = quoteBuy(a, amt); if(!q || !t) return "No live price for this coin, so the demo buy was not placed.";
+  const sym = (t.pair.baseToken || {}).symbol || "?", p = S.demo.pos[a] || {sym, qty: 0, cost: 0, at: Date.now()};
+  p.qty += q.qty; p.cost += amt; S.demo.pos[a] = p; S.demo.cash -= amt;
+  S.demo.hist.unshift({t: Date.now(), side: "buy", sym, a, usd: amt, px: q.fill, verdict: x.signal, checks: x.passN + "/" + x.checks.length});
+  S.demo.hist = S.demo.hist.slice(0, 200);
+  S.pos[a] = {entry: p.cost / p.qty, at: p.at, peak: Math.max(x.px, (S.pos[a] && S.pos[a].peak) || 0)}; save("mr.pos", S.pos);
+  if(!S.watch.includes(a)){ S.watch.unshift(a); save("mr.watch", S.watch); }
+  save("mr.demo", S.demo);
+  return "Bought " + usd(amt) + " of " + sym + " at " + price(q.fill) + ".";
+}
+function demoSell(a, frac){
+  const p = S.demo.pos[a]; if(!p) return "";
+  const qty = p.qty * frac, q = quoteSell(a, qty);
+  if(!q) return "No live price for " + p.sym + " right now, so it cannot be sold. A coin that stops trading stays stuck like this.";
+  const costPart = p.cost * frac; S.demo.cash += q.out;
+  S.demo.hist.unshift({t: Date.now(), side: "sell", sym: p.sym, a, usd: q.out, px: q.px, pnl: q.out - costPart});
+  S.demo.hist = S.demo.hist.slice(0, 200);
+  p.qty -= qty; p.cost -= costPart;
+  if(frac >= 1 || p.cost < 0.01){ delete S.demo.pos[a]; delete S.pos[a]; save("mr.pos", S.pos); }
+  save("mr.demo", S.demo);
+  return "Sold " + (frac >= 1 ? "all" : Math.round(frac * 100) + "%") + " of " + p.sym + " for " + usd(q.out) + ", " + (q.out >= costPart ? "a profit of " + usd(q.out - costPart) : "a loss of " + usd(costPart - q.out)) + ".";
+}
+function demoClick(e){
+  const b = e.target.closest("[data-dbuy]"), sl = e.target.closest("[data-dsell]");
+  if(!b && !sl) return false;
+  S.demoMsg = b ? demoBuy(b.dataset.dbuy) : demoSell(sl.dataset.dsell, Number(sl.dataset.frac) || 1);
+  render(); return true;
+}
+function demoBox(t){
+  const id = esc(t.addr), p = S.demo.pos[t.addr], q = p ? quoteSell(t.addr, p.qty) : null;
+  return '<div><h3>Demo trade, play money</h3><div class="plan"><label>Amount, $<input type="text" inputmode="decimal" id="da-' + id + '" data-damt="1" value="' + esc(S.demoAmt) + '"></label>' +
+    '<p data-dquote="' + id + '">' + esc(demoQuoteText(t.addr)) + "</p>" +
+    (p ? "<p>Holding: paid " + usd(p.cost) + ", worth " + (q ? usd(q.out) + " if sold now (" + pct((q.out / p.cost - 1) * 100) + ")" : "unknown, no live price") + ".</p>" : "") +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-dbuy="' + id + '">Demo buy</button>' +
+    (p ? '<button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button><button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button>' : "") + "</div>" +
+    (S.demoMsg ? '<p style="color:var(--fg)">' + esc(S.demoMsg) + "</p>" : "") + "</div></div>";
+}
+function renderDemo(){
+  const D = S.demo, ids = Object.keys(D.pos); let held = 0, cost = 0, unpriced = 0;
+  const rows = ids.map(a => { const p = D.pos[a], q = quoteSell(a, p.qty), x = S.A.get(a); if(q) held += q.out; else unpriced++; cost += p.cost; return {a, p, q, x}; });
+  const realised = D.hist.reduce((t, h) => t + (h.side === "sell" ? n(h.pnl) : 0), 0), equity = D.cash + held, open = held - (cost - rows.filter(r => !r.q).reduce((t, r) => t + r.p.cost, 0));
+  const tone = v => v > 0.005 ? "up" : v < -0.005 ? "down" : "";
+  const sgn = v => (v >= 0 ? "+" : "−") + usd(Math.abs(v));
+  $("demoNote").textContent = S.demoMsg || (!ids.length && !D.hist.length ? "Practise with play money before using real funds. Open any coin and use Demo buy. Fills include estimated price impact and 1% costs, and nothing here touches a real wallet." : "");
+  $("demoStats").innerHTML =
+    '<div><b class="' + tone(equity - D.start) + '">' + usd(equity) + "</b><span>Total value, from " + usd(D.start) + " (" + pct((equity / D.start - 1) * 100) + ")</span></div>" +
+    "<div><b>" + usd(D.cash) + "</b><span>Demo cash</span></div>" +
+    '<div><b class="' + tone(open) + '">' + sgn(open) + "</b><span>Open positions" + (unpriced ? ", " + unpriced + " without a live price" : "") + "</span></div>" +
+    '<div><b class="' + tone(realised) + '">' + sgn(realised) + "</b><span>Closed trades</span></div>";
+  $("demoTableBox").hidden = !ids.length;
+  $("demoRows").innerHTML = rows.map(({a, p, q, x}) => { const pl = q ? q.out - p.cost : null, id = esc(a);
+    return "<tr><td><b>" + esc(p.sym) + '</b></td><td class="l">' + (x ? '<span class="pill ' + SIG[x.signal][0] + '">' + SIG[x.signal][1] + "</span>" : '<span class="muted">no data</span>') + '</td><td class="num">' + usd(p.cost) + '</td><td class="num">' + (q ? usd(q.out) : "—") +
+      '</td><td class="num ' + (pl == null ? "muted" : tone(pl)) + '">' + (pl == null ? "no live price" : sgn(pl) + " (" + pct(pl / p.cost * 100) + ")") + '</td><td><button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button> <button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button></td></tr>'; }).join("");
+  $("demoHN").textContent = D.hist.length;
+  if(D.hist.length) $("demoHist").innerHTML = D.hist.slice(0, 25).map(h => '<li><span class="num muted">' + esc(new Date(h.t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) + '</span> <b class="' + (h.side === "buy" ? "up" : "down") + '">' + (h.side === "buy" ? "Buy" : "Sell") + "</b> <b>" + esc(h.sym) + "</b> " + usd(n(h.usd)) + " at " + price(h.px) +
+    (h.side === "buy" ? ' <span class="muted">(' + esc((SIG[h.verdict] || ["", ""])[1]) + ", " + esc(h.checks || "") + " checks)</span>" : ' <span class="' + tone(n(h.pnl)) + '">' + sgn(n(h.pnl)) + "</span>") + "</li>").join("");
+  else $("demoHist").innerHTML = '<li class="muted">No demo trades yet.</li>';
+}
+
 /* ---------- checklist, holders, track record ---------- */
 function leanOf(a){ const c = S.candles.get(a + "|" + S.tf); if(!c || !c.list.length) return null; const st = study(c.list); return st ? chartRead(st, "buy").lean : null; }
 function checkBlock(a){
@@ -1015,7 +1104,7 @@ function render(){
   $("cWatch").textContent = S.watch.length; $("cTrend").textContent = S.trend.length; $("cFresh").textContent = S.fresh.filter(a => S.A.has(a)).length;
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", S.tab === t.dataset.tab));
   const b = $("banner"); b.hidden = !S.error; b.textContent = S.error;
-  renderSpot(); renderLog();
+  renderSpot(); renderLog(); renderDemo();
 
   const ids = S.tab === "watch" ? S.watch : S.tab === "fresh" ? S.fresh : S.trend;
   const loaded = ids.filter(a => S.A.has(a)).map(a => ({t:S.tokens.get(a), a:S.A.get(a)}));
@@ -1136,7 +1225,7 @@ function detail(t, a){
       "<dt>Impact, $1k buy</dt><dd>" + (a.impact1k == null ? "—" : "~" + a.impact1k.toFixed(a.impact1k < 1 ? 2 : 1) + "%") + "</dd>" +
       "<dt>Pair age</dt><dd>" + age(a.ageH) + "</dd>" +
       "<dt>Exchange</dt><dd>" + esc(p.dexId || "—") + "</dd></dl></div>" +
-    '<div><h3>Your position</h3><div class="pos">' + posHtml + "</div></div></div>" +
+    '<div><h3>Your position</h3><div class="pos">' + posHtml + "</div></div>" + demoBox(t) + "</div>" +
     tradesBlock(t, a) +
     '<div class="links">' + (dex ? '<a href="' + esc(dex) + '" target="_blank" rel="noopener noreferrer">Chart on DexScreener</a>' : "") +
     '<a href="https://rugcheck.xyz/tokens/' + esc(t.addr) + '" target="_blank" rel="noopener noreferrer">Full RugCheck report</a></div>' +
@@ -1153,6 +1242,7 @@ function toggleWatch(a){
 $("rows").addEventListener("click", e => {
   const st = e.target.closest("[data-star]"); if(st){ toggleWatch(st.dataset.star); return; }
   const tfb = e.target.closest("[data-tf]"); if(tfb){ S.tf = tfb.dataset.tf; save("mr.tf", S.tf); S.hover.clear(); render(); return; }
+  if(demoClick(e)) return;
   const en = e.target.closest("[data-enter]");
   if(en){ const t = S.tokens.get(en.dataset.enter), px = t && Number(t.pair.priceUsd); if(px > 0){ S.pos[en.dataset.enter] = {entry:px, at:Date.now(), peak:px}; save("mr.pos", S.pos); if(!S.watch.includes(en.dataset.enter)){ S.watch.unshift(en.dataset.enter); save("mr.watch", S.watch); } render(); } return; }
   const cl = e.target.closest("[data-clear]"); if(cl){ delete S.pos[cl.dataset.clear]; save("mr.pos", S.pos); render(); return; }
@@ -1164,6 +1254,13 @@ $("rows").addEventListener("keydown", e => {
   if((e.key === "Enter" || e.key === " ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }
 });
 $("rows").addEventListener("input", e => {
+  const da = e.target.closest("[data-damt]");
+  if(da){
+    S.demoAmt = da.value.replace(/[^0-9.]/g, ""); save("mr.damt", S.demoAmt);
+    document.querySelectorAll("[data-dquote]").forEach(o => { o.textContent = demoQuoteText(o.dataset.dquote); });
+    document.querySelectorAll("[data-damt]").forEach(o => { if(o !== da) o.value = da.value; });
+    return;
+  }
   const el = e.target.closest("[data-plan]"); if(!el) return;
   S.plan[el.dataset.plan] = el.value.replace(/[^0-9.]/g, ""); save("mr.plan", S.plan);
   document.querySelectorAll("[data-planout]").forEach(o => { o.textContent = planText(o.dataset.planout); });
@@ -1237,6 +1334,17 @@ let clearArmed = 0;
 $("recClear").addEventListener("click", e => {
   if(Date.now() - clearArmed < 4000){ S.rec = []; save("mr.rec", S.rec); renderRec(); e.target.textContent = "Clear record"; clearArmed = 0; }
   else { clearArmed = Date.now(); e.target.textContent = "Tap again to clear"; setTimeout(() => { if(clearArmed){ e.target.textContent = "Clear record"; clearArmed = 0; } }, 4000); }
+});
+$("demoBox").addEventListener("click", e => { demoClick(e); });
+$("demoStart").value = S.demo.start;
+let resetArmed = 0;
+$("demoReset").addEventListener("click", e => {
+  if(Date.now() - resetArmed < 4000){
+    const st = Number(String($("demoStart").value).replace(/[^0-9.]/g, "")) || 1000;
+    Object.keys(S.demo.pos).forEach(a => { delete S.pos[a]; }); save("mr.pos", S.pos);
+    S.demo = {start: st, cash: st, pos: {}, hist: []}; save("mr.demo", S.demo); S.demoMsg = "Demo wallet reset to " + usd(st) + ".";
+    e.target.textContent = "Reset wallet"; resetArmed = 0; render();
+  } else { resetArmed = Date.now(); e.target.textContent = "Tap again to reset"; setTimeout(() => { if(resetArmed){ e.target.textContent = "Reset wallet"; resetArmed = 0; } }, 4000); }
 });
 renderLog();
 renderRec();
