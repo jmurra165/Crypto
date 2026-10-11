@@ -49,32 +49,41 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   // 1. Which coins to look at
   const wl = readJSON(path.join(root, "watchlist.json"), null);
   const watch = (Array.isArray(wl) ? wl : DEFAULT_WATCH).filter(a => ADDR_RE.test(a));
-  const boosts = new Map(), trend = [];
-  const disc = await Promise.allSettled(["/token-boosts/top/v1", "/token-boosts/latest/v1", "/token-profiles/latest/v1"].map(e => getJSON(API + e)));
-  disc.forEach(r => {
-    if (r.status !== "fulfilled" || !Array.isArray(r.value)) return;
-    r.value.forEach(x => {
-      if (!x || x.chainId !== "solana" || !ADDR_RE.test(x.tokenAddress || "")) return;
-      if (x.totalAmount) boosts.set(x.tokenAddress, Math.max(boosts.get(x.tokenAddress) || 0, num(x.totalAmount)));
-      if (!trend.includes(x.tokenAddress)) trend.push(x.tokenAddress);
+  // The coin lists change slowly, so they are refreshed about every 5 minutes and reused in between.
+  // Prices and verdicts are checked on every run.
+  const boosts = new Map(); let trend = [], fresh = [];
+  const lists = cache.lists || { trend: {}, vol: {} };
+  const refresh = !(cache.disc && now - cache.disc.at < 4.5 * 60e3);
+  const runNo = (cache.run || 0) + (refresh ? 1 : 0);
+  let disc = cache.disc;
+  if (refresh) {
+    const res = await Promise.allSettled(["/token-boosts/top/v1", "/token-boosts/latest/v1", "/token-profiles/latest/v1"].map(e => getJSON(API + e)));
+    res.forEach(r => {
+      if (r.status !== "fulfilled" || !Array.isArray(r.value)) return;
+      r.value.forEach(x => {
+        if (!x || x.chainId !== "solana" || !ADDR_RE.test(x.tokenAddress || "")) return;
+        if (x.totalAmount) boosts.set(x.tokenAddress, Math.max(boosts.get(x.tokenAddress) || 0, num(x.totalAmount)));
+        if (!trend.includes(x.tokenAddress)) trend.push(x.tokenAddress);
+      });
     });
-  });
-  if (disc.every(r => r.status === "rejected")) errors.push("trending list failed");
-  // GeckoTerminal allows only a few calls a minute from here, so each run asks for the new pairs
-  // plus one page of each longer list, and pages from earlier runs are remembered for three hours.
-  const gtPage = async (pq, p) => {
-    const j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p), out = [];
-    (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
-    return out;
-  };
-  const lists = cache.lists || { trend: {}, vol: {} }, runNo = (cache.run || 0) + 1;
+    if (res.every(r => r.status === "rejected")) { errors.push("trending list failed"); if (disc) { trend = disc.trend || []; (disc.boosts || []).forEach(([a, v]) => boosts.set(a, v)); } }
+    // GeckoTerminal allows only a few calls a minute from here, so each refresh asks for the new pairs
+    // plus one page of each longer list, and earlier pages are remembered for three hours.
+    const gtPage = async (pq, p) => {
+      const j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p), out = [];
+      (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
+      return out;
+    };
+    try { fresh = await gtPage("/new_pools", 1); } catch (e) { errors.push("new pairs list failed (" + e.message + ")"); fresh = (disc && disc.fresh) || []; }
+    await sleep(pause * 8);
+    try { const p = (runNo % 3) + 1; lists.trend[p] = { at: now, ids: await gtPage("/trending_pools", p) }; } catch (e) { errors.push("trending pools page failed (" + e.message + ")"); }
+    await sleep(pause * 8);
+    try { const p = (runNo % 4) + 1; lists.vol[p] = { at: now, ids: await gtPage("/pools?sort=h24_volume_usd_desc", p) }; } catch (e) { errors.push("top volume page failed (" + e.message + ")"); }
+    disc = { at: now, trend: trend.slice(0, 40), boosts: [...boosts].filter(([a]) => trend.slice(0, 40).includes(a)), fresh: fresh.slice(0, 20) };
+  } else {
+    trend = disc.trend || []; fresh = disc.fresh || []; (disc.boosts || []).forEach(([a, v]) => boosts.set(a, v));
+  }
   const pool = set => [...new Set(Object.values(set).filter(e => e && now - e.at < 3 * 3600e3).flatMap(e => e.ids))];
-  let fresh = [];
-  try { fresh = await gtPage("/new_pools", 1); } catch (e) { errors.push("new pairs list failed (" + e.message + ")"); }
-  await sleep(pause * 8);
-  try { const p = (runNo % 3) + 1; lists.trend[p] = { at: now, ids: await gtPage("/trending_pools", p) }; } catch (e) { errors.push("trending pools page failed (" + e.message + ")"); }
-  await sleep(pause * 8);
-  try { const p = (runNo % 4) + 1; lists.vol[p] = { at: now, ids: await gtPage("/pools?sort=h24_volume_usd_desc", p) }; } catch (e) { errors.push("top volume page failed (" + e.message + ")"); }
   const gtTrend = pool(lists.trend), vol = pool(lists.vol);
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
   const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
@@ -103,7 +112,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
     fs.writeFileSync(path.join(dataDir, "signals.json"), JSON.stringify({ meta, signals }));
-    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo, lastSnap: num(cache.lastSnap) }));
+    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, disc, run: runNo, lastSnap: num(cache.lastSnap) }));
     return { meta, signals };
   }
   meta.lastGood = now;
@@ -158,7 +167,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       if (why) { r.st = "closed"; r.x = { t: now, px: x.px, why, gap }; }
     } else {
       r.miss = (r.miss || 0) + 1;
-      if (r.miss >= 12) { r.st = "closed"; r.x = { t: now, px: r.last, why: "No longer listed", gap: false, stale: true }; }
+      if (r.miss >= 20) { r.st = "closed"; r.x = { t: now, px: r.last, why: "No longer listed", gap: false, stale: true }; }
     }
   });
 
@@ -209,7 +218,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     equity = W.cash + holdings();
     W.equity = equity; W.solPx = solPx; W.t = now;
     const last = W.eq[W.eq.length - 1];
-    if (!last || now - last.t >= 9 * 60e3) W.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
+    if (!last || now - last.t >= 4.5 * 60e3) W.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
     if (W.eq.length > 2500) W.eq = W.eq.filter((_, i) => i % 2 === 0 || i > W.eq.length - 400);
     W.hist = W.hist.slice(0, 800);
     fs.writeFileSync(path.join(dataDir, "wallet.json"), JSON.stringify(W));
@@ -244,7 +253,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const live = new Set(ids);
   Object.keys(peak).forEach(a => { if (!live.has(a)) delete peak[a]; });
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
-  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo, lastSnap: snapAt }));
+  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt }));
   fs.writeFileSync(path.join(dataDir, "coins.json"), JSON.stringify({ t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) }));
   return { meta, signals: keep };
 }

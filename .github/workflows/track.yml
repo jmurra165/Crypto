@@ -1,7 +1,7 @@
 name: Track signals
 
 # GitHub's own scheduler proved unreliable for this repository, so each run keeps tracking for
-# about 50 minutes, scoring every 5 minutes, then starts the next run itself. The hourly
+# about 50 minutes, scoring every 90 seconds, then starts the next run itself. The hourly
 # schedule is only a safety net that restarts the chain if it ever stops.
 on:
   schedule:
@@ -41,7 +41,7 @@ jobs:
             ( cd data && git add -A && { git commit -q --amend -m "Tracker data" || true; } && git push -q -f origin HEAD:data ) || echo "saving results failed"
             now=$(date +%s)
             if [ "$now" -ge "$end" ]; then break; fi
-            wait=$(( 300 - (now - start) ))
+            wait=$(( 90 - (now - start) ))
             if [ "$wait" -lt 5 ]; then wait=5; fi
             sleep "$wait"
           done
