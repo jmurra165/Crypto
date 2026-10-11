@@ -1,8 +1,11 @@
 name: Track signals
 
+# GitHub's own scheduler proved unreliable for this repository, so each run keeps tracking for
+# about 50 minutes, scoring every 5 minutes, then starts the next run itself. The hourly
+# schedule is only a safety net that restarts the chain if it ever stops.
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
   push:
     branches: [main]
@@ -10,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: track-signals
@@ -18,20 +22,31 @@ concurrency:
 jobs:
   track:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           ref: data
           path: data
-      - name: Score coins and update signals
-        run: node collect.mjs
-      - name: Save results
+      - name: Track for about 50 minutes
         run: |
-          cd data
-          git config user.name "meme-radar-tracker"
-          git config user.email "meme-radar-tracker@users.noreply.github.com"
-          git add -A
-          git commit -q --amend -m "Tracker data" || true
-          git push -f origin HEAD:data
+          git -C data config user.name "meme-radar-tracker"
+          git -C data config user.email "meme-radar-tracker@users.noreply.github.com"
+          end=$(( $(date +%s) + 3000 ))
+          while :; do
+            start=$(date +%s)
+            git pull -q --ff-only origin main || true
+            node collect.mjs || echo "tracker run failed"
+            ( cd data && git add -A && { git commit -q --amend -m "Tracker data" || true; } && git push -q -f origin HEAD:data ) || echo "saving results failed"
+            now=$(date +%s)
+            if [ "$now" -ge "$end" ]; then break; fi
+            wait=$(( 300 - (now - start) ))
+            if [ "$wait" -lt 5 ]; then wait=5; fi
+            sleep "$wait"
+          done
+      - name: Start the next run
+        if: success() || failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run track.yml --ref main

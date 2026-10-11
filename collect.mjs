@@ -103,7 +103,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
     fs.writeFileSync(path.join(dataDir, "signals.json"), JSON.stringify({ meta, signals }));
-    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo }));
+    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo, lastSnap: num(cache.lastSnap) }));
     return { meta, signals };
   }
   meta.lastGood = now;
@@ -158,7 +158,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       if (why) { r.st = "closed"; r.x = { t: now, px: x.px, why, gap }; }
     } else {
       r.miss = (r.miss || 0) + 1;
-      if (r.miss >= 6) { r.st = "closed"; r.x = { t: now, px: r.last, why: "No longer listed", gap: false, stale: true }; }
+      if (r.miss >= 12) { r.st = "closed"; r.x = { t: now, px: r.last, why: "No longer listed", gap: false, stale: true }; }
     }
   });
 
@@ -218,7 +218,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
 
   // 6b. Keep a snapshot of every coin's inputs and verdict, so rule changes can later be replayed
   //     against exactly what the tracker saw at the time. One compressed file per day.
-  try {
+  let snapAt = num(cache.lastSnap);
+  if (now - snapAt >= 9 * 60e3) try {
     const snapDir = path.join(dataDir, "snap"); fs.mkdirSync(snapDir, { recursive: true });
     const day = new Date(now).toISOString().slice(0, 10), file = path.join(snapDir, day + ".jsonl.gz");
     const r3 = v => (typeof v === "number" && isFinite(v)) ? Math.round(v * 1000) / 1000 : null;
@@ -234,7 +235,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     fs.readdirSync(snapDir).forEach(f => { const d = Date.parse(f.slice(0, 10)); if (isFinite(d) && now - d > 60 * 86400e3) fs.unlinkSync(path.join(snapDir, f)); });
     if (!fs.existsSync(path.join(snapDir, "README.txt"))) fs.writeFileSync(path.join(snapDir, "README.txt"),
       "One line per tracker run: {t, rows}. Each row: address, priceUsd, liquidityUsd, marketCap, pairAgeHours, change m5, h1, h6, h24 (%), buys 1h, sells 1h, buys 6h, sells 6h, volume 1h, 6h, 24h (USD), score, rugScore, verdict initial (b/h/s/r/a), the 12 checks in page order (p/f/n), on-chain status (o/p/u).\n");
-    meta.snapshot = rows.length;
+    meta.snapshot = rows.length; snapAt = now;
   } catch (e) { errors.push("snapshot not saved"); }
 
   // 7. Save. Keep every open signal and the most recent closed ones.
@@ -243,7 +244,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const live = new Set(ids);
   Object.keys(peak).forEach(a => { if (!live.has(a)) delete peak[a]; });
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
-  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo }));
+  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, run: runNo, lastSnap: snapAt }));
   fs.writeFileSync(path.join(dataDir, "coins.json"), JSON.stringify({ t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) }));
   return { meta, signals: keep };
 }
