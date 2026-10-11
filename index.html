@@ -152,6 +152,19 @@ tr.detail li .pts{margin-left:auto;padding-left:10px;font:12px var(--mono);color
 .addr{font:12px var(--mono);color:var(--muted);word-break:break-all}
 .empty{padding:36px 16px;text-align:center;color:var(--muted)}
 
+tr.detail ul.cl{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:7px 28px;margin-bottom:22px}
+tr.detail ul.cl li{align-items:center}
+.ck{flex:none;font:600 10px var(--body);text-transform:uppercase;letter-spacing:.05em;padding:3px 0;width:92px;white-space:nowrap;text-align:center;border-radius:3px}
+.ck.pass{background:var(--buy-bg);color:var(--buy)} .ck.fail{background:var(--sell-bg);color:var(--sell)} .ck.na{background:var(--mute-bg);color:var(--muted)}
+tr.detail ul.hl li{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:13px}
+.hl a{color:var(--accent);font-family:var(--mono)} .hl em{font-style:normal;color:var(--warn);font-size:11px;margin-left:6px}
+.hb{height:6px;background:var(--surface);border-radius:2px;overflow:hidden} .hb i{display:block;height:100%;background:var(--accent)}
+#recBox{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
+.rechd{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
+.recstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.recstats div{border-top:2px solid var(--line);padding-top:8px}
+.recstats b{display:block;font:600 20px var(--mono)} .recstats span{display:block;font-size:12px;color:var(--muted)}
+#recNote{color:var(--muted);max-width:80ch;margin:0}
 .chartbox{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:18px}
 .chd{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:8px}
 .tfs{display:flex;gap:4px}
@@ -254,6 +267,13 @@ details.fold p{margin:10px 0 0}
     </table>
   </div>
 
+  <section id="recBox">
+    <div class="rechd"><h2>Track record of buy signals</h2><button class="btn small" id="recClear">Clear record</button></div>
+    <p id="recNote"></p>
+    <div class="recstats" id="recStats"></div>
+    <div class="tablebox" id="recTableBox" hidden><table><thead><tr><th>Coin</th><th class="l">Signalled</th><th>Entry</th><th>Checks</th><th>After 1h</th><th>After 6h</th><th>After 24h</th></tr></thead><tbody id="recRows"></tbody></table></div>
+  </section>
+
   <details class="fold" id="logBox">
     <summary>Verdict changes <span class="num muted" id="logN">0</span></summary>
     <ul id="log"><li class="muted">Nothing has changed verdict since you opened the page.</li></ul>
@@ -261,10 +281,12 @@ details.fold p{margin:10px 0 0}
 
   <details class="fold">
     <summary>How the verdicts are worked out</summary>
-    <p><b>Signal score</b> runs from −100 to +100 and is the sum of six parts: price change over 5 minutes (up to ±15), 1 hour (±36) and 6 hours (±20); buy pressure, meaning the share of the last hour's trades that were buys (±60, needs 20 or more trades); volume trend, meaning the last hour's volume against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours. Open any row to see each part's contribution.</p>
-    <p><b>Buy</b> needs a score of +35 or more and low rug risk. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between, including strong momentum held back by elevated rug risk. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
-    <p><b>Confidence</b> on a buy or sell counts how many timeframes agree, whether there are 100 or more trades in the hour, and whether liquidity is above $100k.</p>
-    <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added. 60 or more is High, 30 to 59 is Elevated.</p>
+    <p><b>Confidence checklist</b> is the headline for each coin: twelve pass or fail checks. Ten are safety checks: liquidity of $50k or more, liquidity at 3% or more of market cap, a pair more than a day old, a website or socials, two-way trading (50 or more trades in the hour with sells at least a quarter of buys), mint and freeze authority revoked, 90% of the liquidity pool locked or burned, top 10 holders under 30%, developer under 5%, and no insider cluster over 10%. The last two are momentum at the buy line and the chart agreeing. Checks that need data the page could not get are shown as not checked and do not count as passes.</p>
+    <p><b>Signal score</b> runs from −100 to +100 and now leans on trading flow more than price: price change over 5 minutes (up to ±10), 1 hour (±24) and 6 hours (±16); buy pressure, the share of the last hour's trades that were buys (±45, needs 20 or more trades); sustained buying over 6 hours (±20, needs 50 or more trades); volume trend against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours.</p>
+    <p><b>Buy</b> needs a score of +35 or more, low rug risk, and no more than one failed safety check. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
+    <p><b>Confidence</b> on a buy is strong at 10 or more checks passed, moderate at 8 or 9, and weak below that. It is capped at moderate when the on-chain checks could not be loaded.</p>
+    <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
+    <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
     <p><b>Chart read</b> uses the candles on the timeframe you pick: RSI over 14 candles, the 9 and 21 candle moving averages, the volume-weighted average price, recent volume against earlier volume, and where the price sits between the low (support) and high (resistance) of the previous 20 candles. It is shown beside the verdict as a second opinion and does not change the score.</p>
     <p><b>Suggested stop and target</b> put the stop just under support when that is 3% to 30% away, otherwise two typical candle ranges (ATR) below the price. The target is resistance when that is at least 5% up, otherwise twice the distance to the stop. The trade planner sizes a position so that hitting the stop loses the amount you chose.</p>
     <p><b>Recent trades</b> covers the latest trades the data source returns for the main pool, up to 300. Large trades are those over $500 or 0.5% of liquidity, whichever is bigger.</p>
@@ -318,7 +340,7 @@ async function getJSON(url){
 }
 
 /* ---------- scoring ---------- */
-function analyse(t, hist, rc, boost, pos){
+function analyse(t, hist, rc, boost, pos, lean){
   const p = t.pair, now = Date.now(), px = Number(p.priceUsd) || 0;
   const liq = t.totalLiq, mc = n(p.marketCap) || n(p.fdv);
   const ch = p.priceChange || {}, tx = p.txns || {}, vol = p.volume || {};
@@ -349,8 +371,8 @@ function analyse(t, hist, rc, boost, pos){
 
   if(liq && liq < 1e5 && n(vol.h24) / liq > 15) flag("med", 12, "24h volume is " + Math.round(n(vol.h24)/liq) + "× liquidity, which can indicate wash trading", "Volume far above liquidity");
 
-  const info = p.info || {};
-  if(!(info.websites && info.websites.length) && !(info.socials && info.socials.length)) flag("med", 12, "No website or social accounts listed");
+  const info = p.info || {}, hasInfo = !!((info.websites && info.websites.length) || (info.socials && info.socials.length));
+  if(!hasInfo) flag("med", 12, "No website or social accounts listed");
 
   if(hist && hist.peakLiq && liq && liq < hist.peakLiq * 0.7)
     flag("high", 40, "Liquidity has dropped " + Math.round((1 - liq/hist.peakLiq)*100) + "% since this page started tracking it", "Liquidity is draining");
@@ -372,6 +394,26 @@ function analyse(t, hist, rc, boost, pos){
       flag("med", 15, "Only " + rc.lpLockedPct.toFixed(0) + "% of the liquidity pool is locked");
   } else if(rc && !rc.ok) onchain = "unavailable";
 
+  /* holder concentration, only where RugCheck has not already raised the same point */
+  const H = rc && rc.ok ? rc.hold : null, small = !mc || mc < 1e8;
+  const rnames = rc && rc.ok ? (rc.risks || []).map(r => String(r.name)).join("|") : "";
+  if(H && small){
+    if(!/holder|top 10/i.test(rnames)){
+      if(H.top10 > 50) flag("high", 25, "The top 10 holders own " + H.top10.toFixed(0) + "% of supply, so a few wallets can sink the price", "Top 10 hold " + H.top10.toFixed(0) + "%");
+      else if(H.top10 > 30) flag("med", 12, "The top 10 holders own " + H.top10.toFixed(0) + "% of supply", "Top 10 hold " + H.top10.toFixed(0) + "%");
+      if(H.top1 > 15) flag("high", 20, "One wallet holds " + H.top1.toFixed(0) + "% of supply");
+      else if(H.top1 > 8) flag("med", 10, "One wallet holds " + H.top1.toFixed(0) + "% of supply");
+    }
+    if(H.devPct != null && !/creator|dev/i.test(rnames)){
+      if(H.devPct > 10) flag("high", 20, "The developer wallet still holds " + H.devPct.toFixed(0) + "% of supply");
+      else if(H.devPct > 5) flag("med", 10, "The developer wallet still holds " + H.devPct.toFixed(0) + "% of supply");
+    }
+    if(!/insider/i.test(rnames)){
+      if(H.insPct > 25) flag("high", 30, "Linked insider wallets hold " + H.insPct.toFixed(0) + "% of supply and can sell together", "Insiders hold " + H.insPct.toFixed(0) + "%");
+      else if(H.insPct > 10 || rc.insWallets >= 10) flag("med", 15, H.insPct > 10 ? "Linked insider wallets hold " + H.insPct.toFixed(0) + "% of supply" : rc.insWallets + " linked insider wallets detected", "Insider cluster detected");
+    }
+  }
+
   rug = Math.min(100, Math.round(rug));
   const rugLevel = rug >= RUG_HIGH ? "high" : rug >= RUG_MED ? "med" : "low";
   flags.sort((a, b) => b.pts - a.pts);
@@ -379,12 +421,15 @@ function analyse(t, hist, rc, boost, pos){
   /* signal score, kept as named parts so the page can show the working */
   const parts = [];
   const part = (label, pts, max, text) => parts.push({label, pts: Math.round(pts), max, text});
-  part("Price, 5 minutes", clamp(n(ch.m5), -10, 10) * 1.5, 15, "Price " + pct(ch.m5) + " in 5 minutes");
-  part("Price, 1 hour", clamp(n(ch.h1), -30, 30) * 1.2, 36, "Price " + pct(ch.h1) + " in the last hour");
-  part("Price, 6 hours", clamp(n(ch.h6), -50, 50) * 0.4, 20, "Price " + pct(ch.h6) + " over 6 hours");
+  part("Price, 5 minutes", clamp(n(ch.m5), -10, 10) * 1.0, 10, "Price " + pct(ch.m5) + " in 5 minutes");
+  part("Price, 1 hour", clamp(n(ch.h1), -30, 30) * 0.8, 24, "Price " + pct(ch.h1) + " in the last hour");
+  part("Price, 6 hours", clamp(n(ch.h6), -40, 40) * 0.4, 16, "Price " + pct(ch.h6) + " over 6 hours");
   const share = trades ? b1 / trades : 0.5;
-  if(trades >= 20) part("Buy pressure", (share - 0.5) * 120, 60, Math.round(share*100) + "% of the last hour's " + trades + " trades were buys");
-  else part("Buy pressure", 0, 60, "Only " + trades + " trades in the last hour, too few to read");
+  if(trades >= 20) part("Buy pressure", (share - 0.5) * 90, 45, Math.round(share*100) + "% of the last hour's " + trades + " trades were buys");
+  else part("Buy pressure", 0, 45, "Only " + trades + " trades in the last hour, too few to read");
+  const b6 = n(tx.h6 && tx.h6.buys), s6 = n(tx.h6 && tx.h6.sells);
+  if(b6 + s6 >= 50) part("Sustained buying", clamp((b6 / (b6 + s6) - 0.5) * 80, -20, 20), 20, Math.round(b6 / (b6 + s6) * 100) + "% of the last 6 hours' " + (b6 + s6) + " trades were buys");
+  else part("Sustained buying", 0, 20, "Fewer than 50 trades over 6 hours, too few to read");
   let accel = null;
   if(n(vol.h6) > 0){ accel = n(vol.h1) / (n(vol.h6) / 6); part("Volume trend", clamp((accel - 1) * 15, -15, 20), 20, "Last hour's volume is " + accel.toFixed(1) + "× the 6-hour average"); }
   else part("Volume trend", 0, 20, "No volume in the last 6 hours");
@@ -402,11 +447,30 @@ function analyse(t, hist, rc, boost, pos){
     else if(peak >= pos.entry * 1.3 && px <= peak * 0.65) stop = "Price has fallen " + pct((px/peak - 1)*100) + " from its peak since you bought, past the 35% trailing stop";
   }
 
+  /* confidence checklist: ten safety checks, then momentum and chart */
+  const checks = [], ck = (name, state, detail) => checks.push({name, state, detail});
+  const oc = !!(rc && rc.ok);
+  ck("Liquidity of $50k or more", liq >= 5e4 ? "pass" : "fail", liq ? money(liq) : "none");
+  ck("Liquidity is 3% or more of market cap", liq && mc && (liq / mc >= 0.03 || liq >= 1e6 || (!small && liq >= 2.5e5)) ? "pass" : "fail", liq && mc ? (liq / mc * 100).toFixed(1) + "%" : "unknown");
+  ck("Pair is more than a day old", ageH == null ? "na" : ageH >= 24 ? "pass" : "fail", age(ageH));
+  ck("Website or socials listed", hasInfo ? "pass" : "fail", hasInfo ? "" : "none");
+  ck("Two-way trading", trades >= 50 && s1 >= b1 * 0.25 ? "pass" : "fail", b1 + " buys, " + s1 + " sells in 1h");
+  ck("Mint and freeze authority revoked", !oc || !rc.auth ? "na" : rc.auth.mint || rc.auth.freeze ? "fail" : "pass", !oc || !rc.auth ? "no on-chain data" : rc.auth.mint ? "mint still active" : rc.auth.freeze ? "freeze still active" : "");
+  ck("Liquidity pool 90% locked or burned", !oc || typeof rc.lpLockedPct !== "number" ? "na" : rc.lpLockedPct >= 90 ? "pass" : small ? "fail" : "na", !oc || typeof rc.lpLockedPct !== "number" ? "no on-chain data" : rc.lpLockedPct.toFixed(0) + "% locked" + (!small && rc.lpLockedPct < 90 ? ", less relevant at this size" : ""));
+  ck("Top 10 holders under 30%", !H ? "na" : !small || H.top10 < 30 ? "pass" : "fail", !H ? "no holder data" : H.top10.toFixed(0) + "%" + (!small && H.top10 >= 30 ? ", established coin" : ""));
+  ck("Developer holds under 5%", !H || H.devPct == null ? "na" : H.devPct < 5 ? "pass" : "fail", !H || H.devPct == null ? "no holder data" : H.devPct.toFixed(1) + "%");
+  ck("No insider cluster over 10%", !H ? "na" : H.insPct > 10 || rc.insWallets >= 10 ? "fail" : "pass", !H ? "no holder data" : H.insPct.toFixed(0) + "% held, " + rc.insWallets + " linked wallets");
+  const safetyFails = checks.filter(c => c.state === "fail").length;
+  ck("Momentum score at the buy line", score >= BUY_AT ? "pass" : "fail", sg(score) + " against " + sg(BUY_AT));
+  ck("Chart agrees", !lean ? "na" : lean === "Bullish" ? "pass" : lean === "Bearish" ? "fail" : "na", !lean ? "open the row to load the chart" : lean.toLowerCase());
+  const passN = checks.filter(c => c.state === "pass").length, failed = checks.filter(c => c.state === "fail"), naN = checks.filter(c => c.state === "na").length;
+  const safetyFailed = checks.slice(0, 10).filter(c => c.state === "fail");
+
   let signal;
   if(rugLevel === "high") signal = "rug";
   else if(!liq || liq < 10000) signal = "avoid";
   else if(stop || score <= SELL_AT) signal = "sell";
-  else if(score >= BUY_AT && rugLevel === "low") signal = "buy";
+  else if(score >= BUY_AT && rugLevel === "low" && safetyFails <= 1) signal = "buy";
   else signal = "hold";
 
   /* confidence */
@@ -417,6 +481,7 @@ function analyse(t, hist, rc, boost, pos){
     if(stop) c += 2;
     conf = c >= 5 ? "Strong" : c >= 3 ? "Moderate" : "Weak";
   }
+  if(signal === "buy"){ conf = passN >= 10 ? "Strong" : passN >= 8 ? "Moderate" : "Weak"; if(onchain !== "ok" && conf === "Strong") conf = "Moderate"; }
 
   /* plain-language verdict, short reason and what would change it */
   const top = flags[0], hi = flags.filter(f => f.sev === "high");
@@ -431,19 +496,22 @@ function analyse(t, hist, rc, boost, pos){
     short = liq ? "Only " + money(liq) + " of liquidity" : "No pooled liquidity yet";
     flip = "Gets a normal verdict once liquidity is above $10k.";
   } else if(signal === "buy"){
-    verdict = "Buy signal, " + conf.toLowerCase() + " confidence. " + pros.slice(0, 3).map(x => x.text).join(". ") + ". Liquidity is " + money(liq) +
+    verdict = "Buy signal, " + conf.toLowerCase() + " confidence: " + passN + " of " + checks.length + " checks passed" + (failed.length ? ", failed: " + failed.map(c => c.name.toLowerCase()).join("; ") : "") + (naN ? ", " + naN + " not checked" : "") + ". " + pros.slice(0, 3).map(x => x.text).join(". ") + ". Liquidity is " + money(liq) +
       " and rug risk is low (" + rug + ")." + (cons.length ? " Against it: " + cons[0].text.charAt(0).toLowerCase() + cons[0].text.slice(1) + "." : "");
     short = pros.slice(0, 2).map(x => x.text).join("; ");
-    flip = "Drops to hold if the score falls below " + sg(BUY_AT) + " (now " + sg(score) + ") or the rug score reaches " + RUG_MED + " (now " + rug + "). Turns to sell at " + SELL_AT + ".";
+    flip = "Drops to hold if the score falls below " + sg(BUY_AT) + " (now " + sg(score) + ") or the rug score reaches " + RUG_MED + " (now " + rug + "), or a second safety check fails. Turns to sell at " + SELL_AT + ".";
   } else if(signal === "sell"){
     verdict = "Sell signal, " + conf.toLowerCase() + " confidence. " + (stop ? stop + ". " : "") + (cons.length ? cons.slice(0, 3).map(x => x.text).join(". ") + "." : "Momentum score is " + sg(score) + ".");
     short = stop ? (position.pnl <= -0.25 ? "Stop-loss hit: " + pct(position.pnl*100) + " on your entry" : "Trailing stop hit") : cons.slice(0, 2).map(x => x.text).join("; ");
     flip = stop ? "Your exit rule stays triggered until the price recovers or you clear the entry." : "Returns to hold if the score rises above " + SELL_AT + " (now " + sg(score) + ").";
   } else {
     if(score >= BUY_AT){
-      verdict = "Hold. Momentum is strong enough for a buy (" + sg(score) + "), but rug risk is elevated at " + rug + (top ? ": " + top.text.charAt(0).toLowerCase() + top.text.slice(1) : "") + ". It stays on hold until that clears.";
-      short = "Buy-level momentum, held back by rug risk" + (top ? ": " + top.short : "");
-      flip = "Becomes a buy if the rug score falls below " + RUG_MED + " (now " + rug + ") while the score stays at " + sg(BUY_AT) + " or more.";
+const why = [];
+      if(rugLevel !== "low") why.push("rug risk is elevated at " + rug + (top ? " (" + top.short.charAt(0).toLowerCase() + top.short.slice(1) + ")" : ""));
+      if(safetyFails > 1) why.push(safetyFails + " safety checks failed: " + safetyFailed.map(c => c.name.toLowerCase()).join("; "));
+      verdict = "Hold. Momentum is strong enough for a buy (" + sg(score) + "), but " + why.join(", and ") + ". It stays on hold until that clears.";
+      short = "Buy-level momentum, held back by " + (rugLevel !== "low" ? "rug risk" : safetyFails + " failed checks");
+      flip = "Becomes a buy when the rug score is under " + RUG_MED + " (now " + rug + ") and no more than one safety check fails (now " + safetyFails + "), while the score stays at " + sg(BUY_AT) + " or more.";
     } else {
       const lean = score >= 15 ? "leaning positive" : score <= -12 ? "leaning negative" : "no clear direction";
       verdict = "Hold, " + lean + ". The score of " + sg(score) + " sits between the sell line (" + SELL_AT + ") and the buy line (" + sg(BUY_AT) + ")." +
@@ -456,7 +524,7 @@ function analyse(t, hist, rc, boost, pos){
 
   const impact = x => liq ? x / (liq / 2 + x) * 100 : null;
   return {score, parts, pros, cons, signal, conf, verdict, short, flip, rug, rugLevel, flags, onchain, ageH, liq, mc, share, trades, b1, s1, accel,
-    impact100: impact(100), impact1k: impact(1000), position, px};
+    impact100: impact(100), impact1k: impact(1000), position, px, checks, passN, failN: failed.length, naN, hold: H, oc, ins: oc ? rc.insWallets : 0, lp: oc ? rc.lpLockedPct : null, auth: oc ? rc.auth : null};
 }
 
 /* ---------- formatting ---------- */
@@ -550,6 +618,31 @@ async function loadPrices(){
   if(posDirty) save("mr.pos", S.pos);
 }
 
+const POOL_OWNERS = new Set(["5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"]);
+function parseReport(j){
+  j = j || {};
+  const known = j.knownAccounts || {}, kt = x => String((known[x] || {}).type || "").toUpperCase();
+  const out = {risks: Array.isArray(j.risks) ? j.risks : [], rugged: !!j.rugged, lpLockedPct: typeof j.lpLockedPct === "number" ? j.lpLockedPct : null, hold: null, auth: null, insWallets: 0};
+  if(Array.isArray(j.markets) && j.markets.length){
+    const m = j.markets.filter(x => x && x.lp && typeof x.lp.lpLockedPct === "number").sort((x, y) => (n(y.lp.quoteUSD) + n(y.lp.baseUSD)) - (n(x.lp.quoteUSD) + n(x.lp.baseUSD)))[0];
+    if(m) out.lpLockedPct = m.lp.lpLockedPct;
+  }
+  if(j.token && typeof j.token === "object") out.auth = {mint: !!j.token.mintAuthority, freeze: !!j.token.freezeAuthority};
+  const nets = Array.isArray(j.insiderNetworks) ? j.insiderNetworks : [];
+  out.insWallets = n(j.graphInsidersDetected) || nets.reduce((t, x) => t + n(x && x.size), 0);
+  if(Array.isArray(j.topHolders) && j.topHolders.length){
+    const real = j.topHolders.map(h => ({addr: String(h.owner || h.address || ""), pct: Number(h.pct), insider: !!h.insider,
+        pool: POOL_OWNERS.has(h.owner) || ["AMM", "LOCKER"].includes(kt(h.owner)) || ["AMM", "LOCKER"].includes(kt(h.address)), dev: !!j.creator && h.owner === j.creator}))
+      .filter(h => isFinite(h.pct) && h.pct >= 0 && h.pct <= 100 && !h.pool).sort((a, b) => b.pct - a.pct);
+    if(real.length){
+      const devH = real.find(h => h.dev); let devPct = devH ? devH.pct : null;
+      if(devPct == null && j.token && Number(j.token.supply) > 0 && j.creatorBalance != null && isFinite(Number(j.creatorBalance))){ const p = Number(j.creatorBalance) / Number(j.token.supply) * 100; if(p >= 0 && p <= 100) devPct = p; }
+      out.hold = {list: real.slice(0, 10), top1: real[0].pct, top10: real.slice(0, 10).reduce((t, h) => t + h.pct, 0), devPct, insPct: real.filter(h => h.insider).reduce((t, h) => t + h.pct, 0), total: n(j.totalHolders) || null};
+    }
+  }
+  return out;
+}
+
 let rcRunning = false;
 async function rugcheckQueue(){
   if(rcRunning || S.rcOff) return; rcRunning = true;
@@ -558,8 +651,9 @@ async function rugcheckQueue(){
     const c = S.rc.get(a);
     if(c && Date.now() - c.at < 15*60e3) continue;
     try{
-      const j = await getJSON(RUGCHECK + a + "/report/summary");
-      S.rc.set(a, {ok:true, at:Date.now(), risks:Array.isArray(j.risks) ? j.risks : [], lpLockedPct:j.lpLockedPct, rugged:!!j.rugged});
+      let j;
+      try{ j = await getJSON(RUGCHECK + a + "/report"); }catch(e){ j = await getJSON(RUGCHECK + a + "/report/summary"); }
+      S.rc.set(a, Object.assign({ok:true, at:Date.now()}, parseReport(j)));
       S.rcFails = 0;
     }catch(e){
       S.rc.set(a, {ok:false, at:Date.now()});
@@ -581,7 +675,7 @@ async function tick(force){
     S.error = "Couldn't reach DexScreener. Check your connection; the page will keep retrying.";
   }
   S.busy = false; nextAt = Date.now() + S.interval * 1000;
-  render(); rugcheckQueue();
+  render(); rugcheckQueue(); fillRecords();
 }
 
 /* ---------- candles, trades and indicators ---------- */
@@ -818,13 +912,84 @@ function tradesBlock(t, a){
   return '<div class="trades"><h3>Recent trades</h3>' + inner + "</div>";
 }
 
+/* ---------- checklist, holders, track record ---------- */
+function leanOf(a){ const c = S.candles.get(a + "|" + S.tf); if(!c || !c.list.length) return null; const st = study(c.list); return st ? chartRead(st, "buy").lean : null; }
+function checkBlock(a){
+  const lbl = {pass:"Pass", fail:"Fail", na:"Not checked"};
+  return "<h3>Confidence checklist: " + a.passN + " of " + a.checks.length + " passed, " + a.failN + " failed" + (a.naN ? ", " + a.naN + " not checked" : "") + '</h3><ul class="cl">' +
+    a.checks.map(c => '<li><span class="ck ' + c.state + '">' + lbl[c.state] + "</span><span>" + esc(c.name) + (c.detail ? ' <span class="muted">(' + esc(c.detail) + ")</span>" : "") + "</span></li>").join("") + "</ul>";
+}
+function holdersBlock(t, a){
+  const rc = S.rc.get(t.addr), H = a.hold; let inner;
+  if(!rc) inner = '<p class="muted" style="margin:0">' + (S.rcOff ? "Holder data is unavailable because RugCheck is not responding." : "Loading holder data from RugCheck…") + "</p>";
+  else if(!rc.ok) inner = '<p class="muted" style="margin:0">Holder data could not be loaded from RugCheck, so concentration, developer and insider checks are marked not checked.</p>';
+  else {
+    const yn = (v, bad, good) => v == null ? "—" : v ? '<span class="down">' + bad + "</span>" : '<span class="up">' + good + "</span>";
+    inner = '<dl class="kv">' +
+      (H && H.total ? "<dt>Holders</dt><dd>" + H.total.toLocaleString() + "</dd>" : "") +
+      (H ? "<dt>Largest holder</dt><dd>" + H.top1.toFixed(1) + "%</dd><dt>Top 10</dt><dd>" + H.top10.toFixed(1) + "%</dd><dt>Developer</dt><dd>" + (H.devPct == null ? "—" : H.devPct.toFixed(1) + "%") + "</dd><dt>Insiders</dt><dd>" + H.insPct.toFixed(1) + "%, " + a.ins + " linked wallets</dd>" : "<dt>Holders</dt><dd>not in the report</dd>") +
+      "<dt>Pool locked</dt><dd>" + (typeof a.lp === "number" ? a.lp.toFixed(0) + "%" : "—") + "</dd>" +
+      "<dt>Mint authority</dt><dd>" + yn(a.auth ? a.auth.mint : null, "active", "revoked") + "</dd>" +
+      "<dt>Freeze authority</dt><dd>" + yn(a.auth ? a.auth.freeze : null, "active", "revoked") + "</dd></dl>" +
+      (H ? '<ul class="hl" style="margin-top:12px">' + H.list.slice(0, 6).map(h => "<li><span>" + (ADDR_RE.test(h.addr) ? '<a href="https://solscan.io/account/' + esc(h.addr) + '" target="_blank" rel="noopener noreferrer">' + esc(h.addr.slice(0, 4) + "…" + h.addr.slice(-4)) + "</a>" : "wallet") +
+        (h.dev ? "<em>dev</em>" : h.insider ? "<em>insider</em>" : "") + '</span><div class="hb"><i style="width:' + Math.min(100, h.pct * 3).toFixed(0) + '%"></i></div><span class="num">' + h.pct.toFixed(1) + "%</span></li>").join("") +
+        '</ul><div class="muted" style="font-size:12px;margin-top:6px">Largest wallets, with liquidity pools left out.</div>' : "");
+  }
+  return "<div><h3>Holders and insiders</h3>" + inner + "</div>";
+}
+
+S.rec = load("mr.rec", []); if(!Array.isArray(S.rec)) S.rec = [];
+const HZ = {h1: 3600e3, h6: 6 * 3600e3, h24: 24 * 3600e3};
+function logBuy(a, t, x){
+  if(!(x.px > 0) || S.rec.some(r => r.a === a && Date.now() - r.t < 24 * 3600e3)) return;
+  S.rec.unshift({a, sym: (t.pair.baseToken || {}).symbol || "?", pool: t.pair.pairAddress || "", t: Date.now(), px: x.px, score: x.score, conf: x.conf, pass: x.passN, of: x.checks.length, r: {}, tries: 0});
+  S.rec = S.rec.slice(0, 200); save("mr.rec", S.rec); renderRec();
+}
+let filling = false;
+async function fillRecords(){
+  if(filling) return; filling = true; let calls = 0, dirty = false;
+  for(const r of S.rec){
+    for(const k in HZ){
+      if(calls >= 4) break;
+      if(r.r[k] !== undefined) continue;
+      const due = r.t + HZ[k]; if(Date.now() < due + 16 * 60e3) continue;
+      if(!r.pool){ r.r[k] = null; dirty = true; continue; }
+      calls++;
+      try{
+        const j = await getJSON(GT + "/pools/" + encodeURIComponent(r.pool) + "/ohlcv/minute?aggregate=15&limit=1&before_timestamp=" + Math.floor(due / 1000));
+        const row = (((((j || {}).data || {}).attributes || {}).ohlcv_list) || [])[0];
+        r.r[k] = row && +row[4] > 0 ? +row[4] / r.px - 1 : null; dirty = true;
+      }catch(e){ r.tries = (r.tries || 0) + 1; if(r.tries > 12){ r.r[k] = null; dirty = true; } }
+      await new Promise(z => setTimeout(z, 2500));
+    }
+  }
+  if(dirty){ save("mr.rec", S.rec); renderRec(); }
+  filling = false;
+}
+function renderRec(){
+  const N = S.rec.length;
+  $("recNote").textContent = !N ? "No buy signals logged yet. Each one the page gives while it is open is recorded here, then checked against the price 1, 6 and 24 hours later. This is how you find out whether the rules are any good."
+    : N + " buy signal" + (N === 1 ? "" : "s") + " logged in this browser. " + (N < 30 ? "That is too few to judge the rules by. Treat the numbers as anecdotes until there are 30 or more measured signals." : "Returns are measured from the price at the signal, before trading costs and slippage.");
+  const med = v => { const s2 = [...v].sort((x, y) => x - y), m = Math.floor(s2.length / 2); return s2.length % 2 ? s2[m] : (s2[m - 1] + s2[m]) / 2; };
+  $("recStats").innerHTML = !N ? "" : Object.keys(HZ).map(k => {
+    const v = S.rec.map(r => r.r[k]).filter(x => typeof x === "number"), lab = {h1:"1 hour", h6:"6 hours", h24:"24 hours"}[k];
+    if(!v.length) return "<div><b class=\"muted\">—</b><span>After " + lab + ": nothing measured yet</span></div>";
+    const wins = v.filter(x => x > 0).length, m = med(v) * 100;
+    return '<div><b class="' + (m >= 0 ? "up" : "down") + '">' + pct(m) + "</b><span>Median after " + lab + "</span><span>" + wins + " of " + v.length + " were up, worst " + pct(Math.min(...v) * 100) + ", best " + pct(Math.max(...v) * 100) + "</span></div>";
+  }).join("");
+  $("recTableBox").hidden = !N;
+  const cell = (r, k) => { const x = r.r[k]; return x === undefined ? '<td class="num muted">' + (Date.now() < r.t + HZ[k] ? "pending" : "checking") + "</td>" : x === null ? '<td class="num muted">no data</td>' : '<td class="num ' + (x >= 0 ? "up" : "down") + '">' + pct(x * 100) + "</td>"; };
+  $("recRows").innerHTML = S.rec.slice(0, 15).map(r => "<tr><td><b>" + esc(r.sym) + '</b></td><td class="l num muted">' + esc(new Date(r.t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) + '</td><td class="num">' + price(r.px) + '</td><td class="num">' + esc(r.pass + "/" + r.of) + "</td>" + cell(r, "h1") + cell(r, "h6") + cell(r, "h24") + "</tr>").join("");
+}
+
 /* ---------- render ---------- */
 function recompute(){
   S.A = new Map(); let changed = false;
   allIds().forEach(a => {
     const t = S.tokens.get(a); if(!t) return;
-    const x = analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0, S.pos[a]);
+    const x = analyse(t, S.hist.get(a), S.rc.get(a), S.boosts.get(a) || 0, S.pos[a], leanOf(a));
     S.A.set(a, x);
+    if(x.signal === "buy" && x.onchain !== "pending") logBuy(a, t, x);
     const prev = S.last.get(a);
     if(!prev) S.last.set(a, {signal:x.signal, since:Date.now(), oc:x.onchain});
     else if(prev.oc === "pending" && x.onchain !== "pending"){ /* first on-chain result is not a market change, so it is not logged */
@@ -858,7 +1023,7 @@ function render(){
   const shown = S.filter === "all" ? loaded : loaded.filter(r => group(r.a.signal) === S.filter);
   $("filterNote").textContent = S.filter === "all" ? "" : "Showing " + shown.length + " of " + loaded.length;
   const key = {
-    signal: r => ({buy:4000 + r.a.score, sell:3000 - r.a.score, hold:2000 + r.a.score, avoid:1000, rug:r.a.rug})[r.a.signal],
+    signal: r => ({buy:4000 + r.a.passN * 200 + r.a.score, sell:3000 - r.a.score, hold:2000 + r.a.score, avoid:1000, rug:r.a.rug})[r.a.signal],
     rug: r => r.a.rug, h1: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h1),
     h24: r => n(r.t.pair.priceChange && r.t.pair.priceChange.h24), liq: r => r.t.totalLiq
   }[S.sort] || (r => 0);
@@ -881,7 +1046,7 @@ function render(){
     h += '<tr class="row s-' + a.signal + '" data-a="' + esc(t.addr) + '" tabindex="0" aria-expanded="' + S.expanded.has(t.addr) + '">' +
       '<td><div class="tok">' + (img ? '<img src="' + esc(img) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="ph"></span>') +
       "<div><b>" + esc(bt.symbol || "?") + "</b><small>" + esc(bt.name || "") + "</small></div></div></td>" +
-      '<td class="l"><span class="pill ' + SIG[a.signal][0] + '">' + SIG[a.signal][1] + '</span> <span class="num muted">' + sg(a.score) + (a.conf ? " · " + a.conf.toLowerCase() : "") + "</span>" +
+      '<td class="l"><span class="pill ' + SIG[a.signal][0] + '">' + SIG[a.signal][1] + '</span> <span class="num muted">' + a.passN + "/" + a.checks.length + " checks" + (a.conf ? " · " + a.conf.toLowerCase() : "") + "</span>" +
         '<span class="short">' + esc(a.short) + "</span></td>" +
       '<td class="l"><span class="pill ' + RUG[a.rugLevel][0] + '">' + RUG[a.rugLevel][1] + '</span> <span class="num muted">' + a.rug + "</span></td>" +
       '<td class="num">' + price(p.priceUsd) + spark(S.hist.get(t.addr)) + "</td>" +
@@ -906,24 +1071,24 @@ function render(){
 function renderSpot(){
   const box = $("spot"), body = $("spotBody");
   if(!S.A.size){ return; }
-  const buys = [...S.A].filter(([, x]) => x.signal === "buy").sort((p, q) => q[1].score - p[1].score);
+  const buys = [...S.A].filter(([, x]) => x.signal === "buy").sort((p, q) => (q[1].passN * 200 + q[1].score) - (p[1].passN * 200 + p[1].score));
   box.classList.toggle("none", !buys.length);
   if(!buys.length){
     const holds = [...S.A].filter(([, x]) => x.signal === "hold").sort((p, q) => q[1].score - p[1].score);
-    let msg = "No coin meets the buy rules at the moment (score of " + sg(BUY_AT) + " or more with low rug risk).";
+    let msg = "No coin meets the buy rules at the moment (score of " + sg(BUY_AT) + " or more, low rug risk, and no more than one failed safety check).";
     if(holds.length){
       const [a, x] = holds[0], sym = (S.tokens.get(a).pair.baseToken || {}).symbol || "?";
-      msg += " Closest is " + esc(sym) + " at " + sg(x.score) + (x.score >= BUY_AT ? ", held back by elevated rug risk (" + x.rug + ")." : ", " + (BUY_AT - x.score) + " points short.");
+      msg += " Closest is " + esc(sym) + " at " + sg(x.score) + (x.score >= BUY_AT ? ", held back by rug risk or failed safety checks." : ", " + (BUY_AT - x.score) + " points short.");
     }
     body.className = "muted"; body.innerHTML = msg; return;
   }
   body.className = "cards";
   body.innerHTML = buys.slice(0, 6).map(([a, x]) => {
     const t = S.tokens.get(a), p = t.pair, ch = p.priceChange || {}, since = S.last.get(a);
-    return '<button class="card" data-go="' + esc(a) + '"><div class="hd"><b>' + esc((p.baseToken || {}).symbol || "?") + '</b><span class="sc">' + sg(x.score) + "</span></div>" +
+    return '<button class="card" data-go="' + esc(a) + '"><div class="hd"><b>' + esc((p.baseToken || {}).symbol || "?") + '</b><span class="sc">' + x.passN + "/" + x.checks.length + "</span></div>" +
       '<div class="num">' + price(p.priceUsd) + ' <span class="' + (n(ch.h1) >= 0 ? "up" : "down") + '">' + pct(ch.h1) + " 1h</span></div>" +
       "<ul>" + x.pros.slice(0, 3).map(r => "<li>" + esc(r.text) + "</li>").join("") + "</ul>" +
-      '<div class="ft"><span>' + x.conf + " confidence</span><span>Rug " + x.rug + "</span><span>Liquidity " + money(x.liq) + "</span>" +
+      '<div class="ft"><span>' + x.conf + " confidence</span><span>Score " + sg(x.score) + "</span><span>Rug " + x.rug + "</span><span>Liquidity " + money(x.liq) + "</span>" +
       (since ? "<span>Buy for " + ago(since.since).replace("just now", "under a minute") + "</span>" : "") + "</div></button>";
   }).join("");
 }
@@ -955,10 +1120,12 @@ function detail(t, a){
   return '<tr class="detail"><td colspan="10">' +
     '<p class="verdict">' + esc(a.verdict) + "</p>" +
     '<p class="flip">' + (since ? "This verdict has held for " + ago(since.since).replace("just now", "under a minute") + " of this session. " : "") + esc(a.flip) + "</p>" +
+    checkBlock(a) +
     chartBlock(t, a) +
     '<div class="dgrid">' +
     "<div><h3>Signal score, part by part</h3>" + parts + '<div class="total"><span>Score</span><span class="num">' + sg(a.score) + "</span></div></div>" +
     "<div><h3>Rug-pull checks</h3><ul>" + flags + oc + '</ul><div class="total"><span>Rug score</span><span class="num">' + a.rug + " · " + RUG[a.rugLevel][1] + "</span></div></div>" +
+    holdersBlock(t, a) +
     '<div><h3>Market</h3><dl class="kv">' +
       "<dt>Liquidity</dt><dd>" + money(t.totalLiq) + (t.nPairs > 1 ? " across " + t.nPairs + " pools" : "") + "</dd>" +
       "<dt>Market cap</dt><dd>" + money(a.mc) + "</dd>" +
@@ -1066,7 +1233,13 @@ setInterval(() => {
   if(S.error) el.innerHTML = '<span class="dot err"></span>Offline, retrying in ' + left + " s";
   else if(S.lastOk) el.innerHTML = '<span class="dot live"></span>Updated ' + new Date(S.lastOk).toLocaleTimeString() + ", next in " + left + " s";
 }, 1000);
+let clearArmed = 0;
+$("recClear").addEventListener("click", e => {
+  if(Date.now() - clearArmed < 4000){ S.rec = []; save("mr.rec", S.rec); renderRec(); e.target.textContent = "Clear record"; clearArmed = 0; }
+  else { clearArmed = Date.now(); e.target.textContent = "Tap again to clear"; setTimeout(() => { if(clearArmed){ e.target.textContent = "Clear record"; clearArmed = 0; } }, 4000); }
+});
 renderLog();
+renderRec();
 render();
 tick(true);
 </script>
