@@ -62,16 +62,18 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const gtList = async (pq, pages) => {
     const out = [];
     for (let p = 1; p <= pages; p++) {
-      const j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p);
+      let j;
+      try { j = await getJSON(GT + pq + (pq.includes("?") ? "&" : "?") + "page=" + p); }
+      catch (e) { if (!out.length) throw e; errors.push(pq.split("?")[0] + " stopped at page " + p + " (" + e.message + ")"); break; }
       (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if (ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
-      await sleep(pause);
+      await sleep(pause * 7);
     }
     return out;
   };
   let fresh = [], gtTrend = [], vol = [];
-  try { fresh = await gtList("/new_pools", 1); } catch (e) { errors.push("new pairs list failed"); }
-  try { gtTrend = await gtList("/trending_pools", 3); } catch (e) { errors.push("trending pools list failed"); }
-  try { vol = await gtList("/pools?sort=h24_volume_usd_desc", 4); } catch (e) { errors.push("top volume list failed"); }
+  try { fresh = await gtList("/new_pools", 1); } catch (e) { errors.push("new pairs list failed (" + e.message + ")"); }
+  try { gtTrend = await gtList("/trending_pools", 3); } catch (e) { errors.push("trending pools list failed (" + e.message + ")"); }
+  try { vol = await gtList("/pools?sort=h24_volume_usd_desc", 4); } catch (e) { errors.push("top volume list failed (" + e.message + ")"); }
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
   const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
 

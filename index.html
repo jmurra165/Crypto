@@ -720,9 +720,9 @@ const SKIP = new Set([SOL, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9v
 async function gtList(pathAndQuery, pages){
   const out = [];
   for(let p = 1; p <= pages; p++){
-    const j = await getJSON(GT + pathAndQuery + (pathAndQuery.includes("?") ? "&" : "?") + "page=" + p);
+    let j; try{ j = await getJSON(GT + pathAndQuery + (pathAndQuery.includes("?") ? "&" : "?") + "page=" + p); }catch(e){ if(!out.length) throw e; break; }
     (j.data || []).forEach(d => { const a = String(((((d || {}).relationships || {}).base_token || {}).data || {}).id || "").replace(/^solana_/, ""); if(ADDR_RE.test(a) && !SKIP.has(a) && !out.includes(a)) out.push(a); });
-    await new Promise(r => setTimeout(r, 250));
+    await new Promise(r => setTimeout(r, 900));
   }
   return out;
 }
