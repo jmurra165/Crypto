@@ -414,6 +414,12 @@ details.fold p{margin:10px 0 0}
       <div class="tablebox flat" id="tnBox" hidden><table><thead><tr><th>Rule set replayed</th><th>Older data</th><th>Trades</th><th>In profit</th><th>Recent unseen data</th><th>Trades</th></tr></thead><tbody id="tnRows"></tbody></table></div>
       <p class="muted" style="margin:0;max-width:90ch;font-size:13px">Each row replays the recorded snapshots as a wallet starting from 10 SOL, with costs and price impact. A change is adopted only if it beats the current rules on the older data and on the recent data it was not chosen on, with enough trades. At most one rule changes per day. The Buy, Hold and Sell verdicts in Markets are not changed by this.</p>
     </section>
+    <section class="panel">
+      <div class="phd"><h2>Signal research</h2><span class="muted" id="rsWhen"></span></div>
+      <p id="rsStatus" style="margin:0;max-width:90ch">The first research run has not finished yet.</p>
+      <div class="tablebox flat" id="rsBox" hidden><table><thead><tr><th>Candidate signal</th><th>Cases</th><th>Typical move after 1 hour</th><th>Average move</th><th>Against the average coin</th><th>Reached +10% before −10%</th><th class="l">Verdict</th></tr></thead><tbody id="rsRows"></tbody></table></div>
+      <p class="muted" style="margin:0;max-width:90ch;font-size:13px">Each row is a rule that could be used to decide when to buy, tested on the tracker's own recorded data: every time the rule became true for a coin, what did the price do next? A signal is only called promising when it is ahead of the average coin, and of trading costs, in both the older and the most recent part of the data, with at least 30 cases in each. Moves are before costs, which run to about 2% to 3% per round trip.</p>
+    </section>
   </div>
 
   <div class="view" id="v-outcomes" hidden>
@@ -451,6 +457,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Auto wallets</b> are three simulated wallets run by the background tracker, so they trade whether or not this page is open. Each starts with 10 SOL and follows its own fixed rule set, which is written out in full at the top of its tab. Fills include estimated price impact and 1% costs each way, and a coin that can no longer be priced is written off as a total loss. They check about every 90 seconds, so they react later than a person watching live would.</p>
     <p><b>Rule review, 12 October 2026.</b> After the first day all three wallets were losing, and the recorded data showed where: coins bought after they had already risen a long way, thinly traded coins, and losers held down to a 25% stop. The wallets were restarted from 10 SOL on new rules. All three now skip coins already up more than 50% in 24 hours, stop out at 12% down, and sell when the momentum score fades instead of waiting for a Sell verdict. "Quick profit" sells everything at 8% up. "Established coins" only buys pools with at least $250k of liquidity that have not moved more than 15% in the hour, and lets winners run on a 10% trailing stop. "Adaptive" starts close to that and is adjusted by the daily tuning. Replayed over that first day these rules lost about 1% where the old ones lost 3% to 24%, but that is the same data they were chosen on, so it flatters them.</p>
     <p><b>Adaptive wallet and daily tuning.</b> Once a day the tracker replays up to 14 days of its recorded snapshots through the adaptive wallet's current rules and through every one-step variation of them: a different buy line, liquidity floor, stop-loss, trailing stop and so on. A variation is adopted only when it beats the current rules on the older part of the data and also on the most recent part, which it was not chosen on, by at least half a percentage point and with enough trades. Nothing changes until there are 5 days of data and 50 replayed trades, and at most one rule changes per day. The original and tighter wallets never change, so they act as benchmarks. Tuning adjusts thresholds only; it cannot invent new signals, and rules that fit past data can still fail on new data.</p>
+    <p><b>Signal research</b> runs once a day in the background tracker. It takes a list of candidate buy rules, such as "down on the day and now being bought", "holder count growing" or "more distinct buyers than sellers", finds every time each one became true in the recorded snapshots, and measures what the price did over the next one to two hours. Results are split into an older and a recent period, and a signal has to be ahead in both to be called promising. It is a way of finding leads to test in a wallet. It does not change any rules by itself.</p>
     <p><b>Demo wallet</b> uses play money and never touches a real wallet. Balances, trade amounts and profit or loss are in SOL, so results reflect what a SOL holder would end up with; token prices stay in dollars to match the charts. A demo buy fills above the quoted price by the estimated price impact for that size, and each trade pays 1% in costs. Holdings are valued at what a sale would return right now after impact and costs, so a position starts slightly down. Real trading can still do worse: failed transactions, front-running and tokens that tax or block sales. A demo buy also marks your entry, so the stop-loss and trailing-stop rules apply to it. It is saved in this browser only.</p>
     <p><b>Track record</b> logs each buy signal given while this page is open, once per coin per 24 hours, then looks up the price 1, 6 and 24 hours later from chart history. It is stored in this browser only. Until it holds 30 or more measured signals the averages mean very little.</p>
     <p><b>Rug score</b> adds points for each warning sign: very low or draining liquidity, liquidity that is tiny next to market cap, a pair only hours old, a price collapse, buys with almost no sells (a honeypot pattern), volume far above liquidity, no website or socials, and heavy paid promotion on a new pair. When RugCheck responds, its on-chain findings are added, along with holder concentration, developer holdings and insider clusters. 60 or more is High, 30 to 59 is Elevated.</p>
@@ -1368,7 +1375,22 @@ function renderAuto(){
   if(S.view === "auto") drawEquity("awEq", "awEqNote", W);
 }
 
+function renderResearch(){
+  const R = S.research; if(!R) return;
+  $("rsWhen").textContent = "Last run " + when(R.t) + ", over " + R.spanDays + " day" + (R.spanDays === 1 ? "" : "s") + " of data" + (R.split ? " (" + R.olderDays + " older, " + R.recentDays + " recent)" : "");
+  $("rsStatus").textContent = R.status || "";
+  $("rsBox").hidden = !R.rows.length;
+  const pp = v => v == null ? "—" : (v > 0 ? "+" : "") + v + "%";
+  const cls = {good: "p-buy", some: "p-low", bad: "p-high", none: "p-hold", wait: "p-hold", base: "p-hold"};
+  $("rsRows").innerHTML = R.rows.map(r => { const a = r.all || {}, edge = r.edgeAll;
+    return '<tr class="' + (r.tone === "good" ? "pick" : r.tone === "base" ? "cur" : "") + '"><td style="white-space:normal;min-width:240px"><b>' + esc(r.name) + '</b><span class="short" style="display:block;max-width:46ch">' + esc(r.what) + "</span></td>" +
+      '<td class="num">' + (a.n || 0) + '</td><td class="num ' + (a.n ? tone(a.med) : "muted") + '">' + (a.n ? pp(a.med) : "—") + '</td><td class="num ' + (a.n ? tone(a.avg) : "muted") + '">' + (a.n ? pp(a.avg) : "—") + "</td>" +
+      '<td class="num ' + (edge == null ? "muted" : tone(edge)) + '">' + (r.tone === "base" ? "—" : edge == null ? "—" : pp(edge)) + (R.split && r.edgeOlder != null && r.edgeRecent != null ? '<span class="short" style="display:block">' + pp(r.edgeOlder) + " older, " + pp(r.edgeRecent) + " recent</span>" : "") + "</td>" +
+      '<td class="num">' + (a.n && a.hit != null ? a.hit + "%" + '<span class="short" style="display:block">' + a.up + " up first, " + a.down + " down first</span>" : "—") + "</td>" +
+      '<td class="l" style="white-space:normal;min-width:200px"><span class="pill ' + (cls[r.tone] || "p-hold") + '">' + (r.tone === "good" ? "Promising" : r.tone === "some" ? "Slight edge" : r.tone === "bad" ? "Worse" : r.tone === "base" ? "Baseline" : r.tone === "wait" ? "Waiting" : "No edge") + '</span><span class="short" style="display:block">' + esc(r.verdict) + "</span></td></tr>"; }).join("");
+}
 function renderTuning(){
+  renderResearch();
   const T = S.tuning; if(!T) return;
   $("tnWhen").textContent = "Last replay " + when(T.t) + (T.spanDays != null ? ", over " + T.spanDays + " day" + (T.spanDays === 1 ? "" : "s") + " of data" : "");
   $("tnStatus").textContent = T.status || "";
@@ -1434,6 +1456,10 @@ async function loadBg(){
   try{
     const tn = await getJSON(BG_URL.replace("signals.json", "tuning.json") + "?t=" + Math.floor(Date.now() / 600e3));
     if(tn && Array.isArray(tn.table)){ S.tuning = tn; renderTuning(); }
+  }catch(e){}
+  try{
+    const rs = await getJSON(BG_URL.replace("signals.json", "research.json") + "?t=" + Math.floor(Date.now() / 600e3));
+    if(rs && Array.isArray(rs.rows)){ S.research = rs; renderTuning(); }
   }catch(e){}
 }
 function logBuy(a, t, x){

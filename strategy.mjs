@@ -26,7 +26,8 @@ export const DEFAULTS = {
   early: false,     // also buy on building trade flow before the price has moved
   maxH24: 100000,   // do not buy a coin already up more than this % in 24 hours (100000 = no limit)
   take: 0,          // sell everything when this far up (0 = off)
-  sellBelow: -30    // sell when the momentum score falls to this or lower
+  sellBelow: -30,   // sell when the momentum score falls to this or lower
+  dip: 0            // wait for this fall from the high after a coin qualifies, then buy the bounce (0 = buy straight away)
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -58,7 +59,8 @@ export const GRID = {
   maxH1: [15, 25, 40, 1000],
   maxM5: [5, 10, 1000],
   early: [false, true],
-  maxH24: [50, 100, 300, 100000],
+  maxH24: [0, 20, 50, 100, 300, 100000],
+  dip: [0, 0.05, 0.08, 0.12],
   take: [0, 0.05, 0.08, 0.12, 0.2],
   sellBelow: [-30, 0, 15, 25]
 };
@@ -82,20 +84,23 @@ export const LABELS = {
   maxH1: v => (v >= 1000 ? "no limit on how far a coin has already risen in the hour" : "skip coins already up more than " + v + "% in the last hour"),
   maxM5: v => (v >= 1000 ? "no limit on the 5-minute move" : "skip coins up more than " + v + "% in the last 5 minutes"),
   early: v => (v ? "also buy early on building trade flow" : "no early-flow buys"),
-  maxH24: v => (v >= 100000 ? "no limit on the 24-hour rise" : "skip coins already up more than " + v + "% in 24 hours"),
+  maxH24: v => (v >= 100000 ? "no limit on the 24-hour rise" : v <= 0 ? "only buy coins that are down over 24 hours" : "skip coins already up more than " + v + "% in 24 hours"),
+  dip: v => (v ? "wait for a " + pc(v) + " pullback after the signal before buying" : "buy as soon as the signal qualifies"),
   take: v => (v ? "sell everything at " + pc(v) + " up" : "no fixed take-profit"),
   sellBelow: v => "sell when the score falls to " + v + " or lower"
 };
 
 export function describe(P) {
-  const caps = [P.maxH24 < 100000 ? P.maxH24 + "% in 24 hours" : "", P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean);
+  const caps = [P.maxH24 < 100000 && P.maxH24 > 0 ? P.maxH24 + "% in 24 hours" : "", P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean);
   const sells = ["on a Rug risk or Avoid verdict", "when the score falls to " + P.sellBelow + " or lower", "at " + pc(P.stop) + " down"];
   if (P.take) sells.push("at " + pc(P.take) + " up");
   if (P.lockAt) sells.push("at the buy price once it has been " + pc(P.lockAt) + " up");
   if (P.trailAt) sells.push("on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up");
   if (P.fade) sells.push("when the score drops below zero while in profit");
   return "Buys when the score is " + P.buyLine + " or more, the rug score is under " + P.rugMax + ", " + (P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
-    " and liquidity is at least " + usdK(P.minLiq) + (P.confirm ? ", and the signal is still there on the next check" : "") + "." +
+    " and liquidity is at least " + usdK(P.minLiq) + (P.confirm && !P.dip ? ", and the signal is still there on the next check" : "") + "." +
+    (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
+    (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
     (caps.length ? " Skips coins already up more than " + caps.join(", or ") + "." : "") +
     (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") +
     " Puts in " + (P.sizeHi === P.sizeLo ? P.sizeHi + "% of the wallet per buy" : P.sizeHi + "% of the wallet at a score of " + P.hiScore + " or more and " + P.sizeLo + "% below that") + ". " +
@@ -103,7 +108,7 @@ export function describe(P) {
 }
 
 export function freshWallet(start, now, extra) {
-  return Object.assign({ started: now, start, cash: start, pos: {}, hist: [], eq: [], skipped: 0, pend: {}, cool: {} }, extra || {});
+  return Object.assign({ started: now, start, cash: start, pos: {}, hist: [], eq: [], skipped: 0, pend: {}, cool: {}, watch: {} }, extra || {});
 }
 
 const num = x => (typeof x === "number" && isFinite(x)) ? x : 0;
@@ -143,17 +148,31 @@ export function stepWallet(W, obs, P, ctx) {
   const holdings = () => { let t = 0; for (const a of Object.keys(W.pos)) { const p = W.pos[a], o = obs.get(a); if (o && o.px > 0) { p.val = sellValue(p.qty, o); p.px = o.px; p.now = ctx.verdictOf ? ctx.verdictOf(a) : undefined; } t += num(p.val); } return t; };
   let equity = W.cash + holdings();
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
+  W.watch = W.watch || {};
   for (const [a, o] of obs) {
+    if (!(o.px > 0) || o.oc === "p" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
-    if (!(o.px > 0) || o.oc === "p" || blocked(o) || !(o.score >= P.buyLine || early) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
-    if (num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24) continue;
-    live.add(a);
-    if (W.pos[a] || (W.cool[a] && now - W.cool[a] < 3600e3) || !(o.liq >= P.minLiq)) continue;
-    if (P.confirm) {
-      const seen = num(W.pend[a]);
-      if (!(seen && now - seen <= cMax)) { W.pend[a] = now; continue; }
-      if (now - seen < cMin) continue;
-      delete W.pend[a];
+    const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24);
+    let viaDip = false;
+    if (P.dip > 0) {
+      // Pullback entry: a qualifying coin goes on watch; it is bought on a dip from its high once the fall has stopped.
+      if (W.pos[a] || (W.cool[a] && now - W.cool[a] < 3600e3)) continue;
+      let w = W.watch[a];
+      if (w && now - w.t > 3600e3) { delete W.watch[a]; w = null; }
+      if (!w) { if (!(signal && o.liq >= P.minLiq)) continue; W.watch[a] = { t: now, hi: o.px }; continue; }
+      if (o.px > w.hi) w.hi = o.px;
+      if (!(o.px <= w.hi * (1 - P.dip) && num(o.m5) >= 0 && o.score >= 15 && o.liq >= P.minLiq)) continue;
+      delete W.watch[a]; viaDip = true;
+    } else {
+      if (!signal) continue;
+      live.add(a);
+      if (W.pos[a] || (W.cool[a] && now - W.cool[a] < 3600e3) || !(o.liq >= P.minLiq)) continue;
+      if (P.confirm) {
+        const seen = num(W.pend[a]);
+        if (!(seen && now - seen <= cMax)) { W.pend[a] = now; continue; }
+        if (now - seen < cMin) continue;
+        delete W.pend[a];
+      }
     }
     const amt = Math.min(equity * (o.score >= P.hiScore && o.score >= P.buyLine ? P.sizeHi : P.sizeLo) / 100, W.cash);
     if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; continue; }
@@ -161,8 +180,9 @@ export function stepWallet(W, obs, P, ctx) {
     const inf = ctx.info ? ctx.info(a) : { sym: a.slice(0, 4) };
     W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
     W.cash -= amt;
-    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, early: early && !(o.score >= P.buyLine) ? 1 : undefined });
+    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, early: early && !(o.score >= P.buyLine) ? 1 : undefined, dip: viaDip ? 1 : undefined });
   }
+  for (const a of Object.keys(W.watch)) { if (now - W.watch[a].t > 3600e3) delete W.watch[a]; }
   // A pending confirmation is dropped when the coin was observed and no longer qualifies.
   for (const a of Object.keys(W.pend)) { if (!live.has(a) && (obs.has(a) || now - W.pend[a] > cMax)) delete W.pend[a]; }
   for (const a of Object.keys(W.cool)) { if (now - W.cool[a] > 3600e3) delete W.cool[a]; }
