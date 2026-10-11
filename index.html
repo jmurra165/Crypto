@@ -29,6 +29,7 @@
   }
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-block:20px 48px;padding-inline:16px}
 .wrap{max-width:1220px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
@@ -159,12 +160,48 @@ tr.detail ul.cl li{align-items:center}
 tr.detail ul.hl li{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:13px}
 .hl a{color:var(--accent);font-family:var(--mono)} .hl em{font-style:normal;color:var(--warn);font-size:11px;margin-left:6px}
 .hb{height:6px;background:var(--surface);border-radius:2px;overflow:hidden} .hb i{display:block;height:100%;background:var(--accent)}
-#recBox,#demoBox{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
+.legacy{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:16px}
 .rechd{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center}
 .recstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
 .recstats div{border-top:2px solid var(--line);padding-top:8px}
 .recstats b{display:block;font:600 20px var(--mono)} .recstats span{display:block;font-size:12px;color:var(--muted)}
 #recNote{color:var(--muted);max-width:80ch;margin:0}
+nav.views{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);scrollbar-width:none}
+nav.views button{flex:none;background:none;border:1px solid transparent;border-radius:999px;padding:7px 14px;color:var(--muted);font-weight:500;white-space:nowrap}
+nav.views button:hover{color:var(--fg)}
+nav.views button[aria-selected=true]{background:var(--raised);border-color:var(--line);color:var(--fg)}
+.bdg{font:500 11px var(--mono);margin-left:7px;color:var(--muted)} .bdg:empty{display:none} .bdg.up{color:var(--buy)} .bdg.down{color:var(--sell)}
+#nvBuy{color:var(--buy)}
+.view{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.phd{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between}
+.hero{flex-direction:row;flex-wrap:wrap;gap:20px 40px;align-items:flex-start}
+.eyebrow{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.big{font:600 40px/1.15 var(--mono);letter-spacing:-.02em}
+.kpis{flex:1 1 420px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 22px}
+.kpis div{border-top:2px solid var(--line);padding-top:8px;min-width:0}
+.kpis b{display:block;font:600 18px var(--mono)} .kpis span{display:block;font-size:12px;color:var(--muted)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.form{display:flex;flex-direction:column;gap:12px}
+.form label{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.form label.check{justify-content:flex-start}
+.form select,.form input[type=text]{width:58%;min-width:0;text-align:right} .form select{text-align:left}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.warnline{margin:0;padding:8px 10px;border-radius:6px;background:var(--warn-bg);color:var(--warn)}
+canvas.eq{display:block;width:100%;height:200px}
+.tablebox.flat{border:0;border-radius:0;background:none;margin:0 -6px}
+.tablebox.flat th{background:none;border-bottom:1px solid var(--line)}
+.lnk{background:none;border:0;padding:0;font-weight:600;color:var(--fg);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.lnk:hover{text-decoration-color:var(--accent)}
+.tag{font:600 10px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.bars{display:flex;align-items:center;gap:3px;height:104px;overflow-x:auto;border-top:1px solid transparent;position:relative}
+.bars::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px solid var(--line)}
+.bar2{flex:0 0 10px;height:100%;position:relative}
+.bar2 i{position:absolute;left:0;right:0;border-radius:2px}
+.bar2 i.pos{bottom:50%;background:var(--buy)} .bar2 i.neg{top:50%;background:var(--sell)}
+.prose{max-width:80ch;color:var(--muted)} .prose p{margin:0} .prose b{color:var(--fg)}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:8px;max-width:min(92vw,520px);font-weight:500;z-index:20;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+@media (max-width:760px){.big{font-size:30px}.panel{padding:14px}}
 .chartbox{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:18px}
 .chd{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;margin-bottom:8px}
 .tfs{display:flex;gap:4px}
@@ -218,6 +255,14 @@ details.fold p{margin:10px 0 0}
 
   <div class="banner" id="banner" hidden></div>
 
+  <nav class="views" role="tablist" aria-label="Sections">
+    <button data-view="markets" role="tab">Markets<span class="bdg" id="nvBuy"></span></button>
+    <button data-view="wallet" role="tab">Demo wallet<span class="bdg" id="nvWallet"></span></button>
+    <button data-view="outcomes" role="tab">Signal outcomes<span class="bdg" id="nvOut"></span></button>
+    <button data-view="method" role="tab">How it works</button>
+  </nav>
+
+  <div class="view" id="v-markets">
   <section class="tally" aria-label="Verdicts, tap to filter">
     <button class="t-buy" data-filter="buy" aria-pressed="false"><b id="nBuy">0</b><span>Buy</span><em></em></button>
     <button class="t-hold" data-filter="hold" aria-pressed="false"><b id="nHold">0</b><span>Hold</span><em></em></button>
@@ -267,29 +312,91 @@ details.fold p{margin:10px 0 0}
     </table>
   </div>
 
-  <section id="demoBox">
-    <div class="rechd"><h2>Demo wallet, play money</h2>
-      <div class="filters"><label>Starting balance, $ <input type="text" inputmode="decimal" id="demoStart" style="width:96px;text-align:right"></label><button class="btn small" id="demoReset">Reset wallet</button></div></div>
-    <p id="demoNote" class="muted" style="margin:0;max-width:80ch"></p>
-    <div class="recstats" id="demoStats"></div>
-    <div class="tablebox" id="demoTableBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th>Paid</th><th>Value if sold now</th><th>Profit or loss</th><th></th></tr></thead><tbody id="demoRows"></tbody></table></div>
-    <details class="fold" style="border-top:0;padding-top:0"><summary>Demo trade history <span class="num muted" id="demoHN">0</span></summary><ul id="demoHist"><li class="muted">No demo trades yet.</li></ul></details>
-  </section>
-
-  <section id="recBox">
-    <div class="rechd"><h2>Track record of buy signals</h2><button class="btn small" id="recClear">Clear record</button></div>
-    <p id="recNote"></p>
-    <div class="recstats" id="recStats"></div>
-    <div class="tablebox" id="recTableBox" hidden><table><thead><tr><th>Coin</th><th class="l">Signalled</th><th>Entry</th><th>Checks</th><th>After 1h</th><th>After 6h</th><th>After 24h</th></tr></thead><tbody id="recRows"></tbody></table></div>
-  </section>
-
   <details class="fold" id="logBox">
     <summary>Verdict changes <span class="num muted" id="logN">0</span></summary>
     <ul id="log"><li class="muted">Nothing has changed verdict since you opened the page.</li></ul>
   </details>
 
-  <details class="fold">
-    <summary>How the verdicts are worked out</summary>
+  </div>
+
+  <div class="view" id="v-wallet" hidden>
+    <section class="panel hero">
+      <div><span class="eyebrow">Demo wallet · play money</span><div class="big num" id="dwTotal">$1,000</div><div class="num" id="dwChange"></div></div>
+      <div class="kpis" id="dwKpis"></div>
+    </section>
+    <section class="panel">
+      <div class="phd"><h2>Wallet value over time</h2><span class="muted" id="dwEqNote"></span></div>
+      <canvas id="dwEq" class="eq" role="img" aria-label="Demo wallet value over time"></canvas>
+    </section>
+    <div class="cols">
+      <section class="panel">
+        <h2>Place a demo trade</h2>
+        <div class="form">
+          <label>Coin<select id="dwCoin"></select></label>
+          <label>Amount, $<input type="text" inputmode="decimal" id="dwAmt" data-damt="1"></label>
+          <div class="chips" id="dwChips"><button class="btn small" data-pc="0.1">10% of cash</button><button class="btn small" data-pc="0.25">25%</button><button class="btn small" data-pc="0.5">50%</button><button class="btn small" data-pc="1">Max</button></div>
+          <dl class="kv" id="dwPreview"></dl>
+          <p class="warnline" id="dwWarn" hidden></p>
+          <button class="btn primary" id="dwBuy">Place demo buy</button>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Auto-follow signals</h2>
+        <div class="form">
+          <label class="check"><input type="checkbox" id="dwAuto"> Buy every new buy signal, and sell when it exits</label>
+          <label>Amount per signal, $<input type="text" inputmode="decimal" id="dwAutoAmt"></label>
+          <p class="muted" style="margin:0">With this on, the wallet becomes a hands-off test of the page's own signals, with costs and price impact included. It only acts while the page is open.</p>
+        </div>
+        <h2 style="margin-top:20px">Your results so far</h2>
+        <dl class="kv" id="dwPerf"></dl>
+      </section>
+    </div>
+    <section class="panel">
+      <div class="phd"><h2>Holdings</h2><span class="muted" id="dwHoldNote"></span></div>
+      <div class="tablebox flat" id="dwHoldBox" hidden><table><thead><tr><th>Coin</th><th class="l">Verdict now</th><th>Value if sold</th><th>Profit or loss</th><th>Avg cost</th><th>Price now</th><th>Share</th><th>Held</th><th class="l">Sell</th></tr></thead><tbody id="dwRows"></tbody></table></div>
+      <p class="empty" id="dwEmpty">No holdings yet. Pick a coin above, or open any coin in Markets and use Demo buy.</p>
+    </section>
+    <section class="panel">
+      <div class="phd"><h2>Trade history</h2><span class="muted" id="dwHistNote"></span></div>
+      <div class="tablebox flat" id="dwHistBox" hidden><table><thead><tr><th>Coin</th><th class="l">Trade</th><th class="l">When</th><th>Amount</th><th>Price</th><th>Result</th><th class="l">Note</th></tr></thead><tbody id="dwHist"></tbody></table></div>
+      <p class="empty" id="dwHistEmpty">Your demo buys and sells will be listed here.</p>
+    </section>
+    <details class="fold">
+      <summary>Wallet settings</summary>
+      <div class="form" style="max-width:420px;margin-top:12px">
+        <label>Starting balance, $<input type="text" inputmode="decimal" id="demoStart"></label>
+        <label>Costs per trade, %<input type="text" inputmode="decimal" id="demoFee"></label>
+        <p class="muted" style="margin:0">The starting balance applies when you reset. Costs apply to the next trade.</p>
+        <button class="btn small" id="demoReset" style="align-self:flex-start">Reset wallet</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="view" id="v-outcomes" hidden>
+    <section class="panel hero">
+      <div><span class="eyebrow">Signal outcomes</span><div class="big num" id="soHead">—</div><div class="muted" id="soSub"></div></div>
+      <div class="kpis" id="soKpis"></div>
+    </section>
+    <p class="muted" id="soNote" style="margin:0;max-width:85ch"></p>
+    <section class="panel">
+      <div class="phd"><h2>Closed signals, oldest to newest</h2><span class="muted">Bar height is the profit or loss, capped at 100%</span></div>
+      <div class="bars" id="soBars"></div>
+    </section>
+    <div class="cols">
+      <section class="panel"><h2>By confidence at the signal</h2>
+        <div class="tablebox flat"><table><thead><tr><th>Confidence</th><th>Closed</th><th>Winners</th><th>Average</th><th>Open</th></tr></thead><tbody id="soConf"></tbody></table></div></section>
+      <section class="panel"><h2>Price at fixed checkpoints after the signal</h2><div class="recstats" id="recStats"></div></section>
+    </div>
+    <section class="panel">
+      <div class="phd"><h2>Every buy signal</h2><div class="chips" id="soFilter"><button class="btn small on" data-sf="all">All</button><button class="btn small" data-sf="open">Open</button><button class="btn small" data-sf="closed">Closed</button></div></div>
+      <div class="tablebox flat" id="soBox" hidden><table><thead><tr><th>Coin</th><th class="l">Status</th><th class="l">Signalled</th><th>Checks</th><th>Entry</th><th>Exit or now</th><th>Profit or loss</th><th>Best / worst</th><th>Held</th></tr></thead><tbody id="soRows"></tbody></table></div>
+      <p class="empty" id="soEmpty">No buy signals logged yet. Each one the page gives while it is open is followed here until it turns into a sell.</p>
+    </section>
+    <div><button class="btn small" id="recClear">Clear signal history</button></div>
+  </div>
+
+  <div class="view prose" id="v-method" hidden>
+    <h2>How the verdicts are worked out</h2>
     <p><b>Confidence checklist</b> is the headline for each coin: twelve pass or fail checks. Ten are safety checks: liquidity of $50k or more, liquidity at 3% or more of market cap, a pair more than a day old, a website or socials, two-way trading (50 or more trades in the hour with sells at least a quarter of buys), mint and freeze authority revoked, 90% of the liquidity pool locked or burned, top 10 holders under 30%, developer under 5%, and no insider cluster over 10%. The last two are momentum at the buy line and the chart agreeing. Checks that need data the page could not get are shown as not checked and do not count as passes.</p>
     <p><b>Signal score</b> runs from −100 to +100 and now leans on trading flow more than price: price change over 5 minutes (up to ±10), 1 hour (±24) and 6 hours (±16); buy pressure, the share of the last hour's trades that were buys (±45, needs 20 or more trades); sustained buying over 6 hours (±20, needs 50 or more trades); volume trend against the 6-hour average (−15 to +20); and a −20 penalty when a coin is already up more than 300% in 24 hours.</p>
     <p><b>Buy</b> needs a score of +35 or more, low rug risk, and no more than one failed safety check. <b>Sell</b> is a score of −30 or less, or one of your own exit rules firing: 25% below the entry you marked, or 35% off the peak after being up 30% or more. <b>Hold</b> is everything between. <b>Rug risk</b> overrides the rest when the rug score reaches 60. <b>Avoid</b> means under $10k of liquidity.</p>
@@ -303,7 +410,9 @@ details.fold p{margin:10px 0 0}
     <p>Prices, liquidity and trade counts come from DexScreener. Candles, individual trades and the new pairs list come from GeckoTerminal. On-chain checks come from RugCheck.</p>
     <p><b>Price impact</b> is an estimate from pooled liquidity of how far a buy of that size would move the price. Real slippage is usually worse.</p>
     <p>These are fixed rules applied to public market data and have not been backtested. They cannot see insider wallets, coordinated dumps or news, and a low rug score does not make a coin safe. Treat this as a screening aid and not as financial advice. Most meme coins go to zero.</p>
-  </details>
+    <p><b>Signal outcomes</b> follows every buy signal from the price when it was given until an exit: the verdict turning to Sell, Rug risk or Avoid, a 25% fall from the signal price, or a 35% fall from the peak after being up 30%. Profit or loss is price to price, before trading costs. Signals and exits are only seen while the page is open, so an exit after a gap is marked late and may be worse than a live exit would have been.</p>
+  </div>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
 </div>
 
 <script>
@@ -342,8 +451,10 @@ const n = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 const sg = x => (x > 0 ? "+" : "") + x;
 S.demo = load("mr.demo", null);
 if(!S.demo || typeof S.demo !== "object" || !S.demo.pos || !Array.isArray(S.demo.hist)) S.demo = {start: 1000, cash: 1000, pos: {}, hist: []};
-S.demoAmt = load("mr.damt", 50); S.demoMsg = "";
-const allIds = () => [...new Set([...S.watch, ...S.trend, ...S.fresh, ...Object.keys(S.demo.pos)])].filter(a => ADDR_RE.test(a));
+if(!(Number(S.demo.fee) >= 0)) S.demo.fee = 1; if(!Array.isArray(S.demo.eq)) S.demo.eq = []; if(!S.demo.auto || typeof S.demo.auto !== "object") S.demo.auto = {on: false, amt: 50};
+Object.keys(S.demo.pos).forEach(a => { const p = S.demo.pos[a]; if(!p.at) p.at = Date.now(); });
+S.demoAmt = load("mr.damt", 50); S.demoCoin = "";
+const allIds = () => [...new Set([...S.watch, ...S.trend, ...S.fresh, ...Object.keys(S.demo.pos), ...(S.rec || []).filter(r => r.st === "open").slice(0, 40).map(r => r.a)])].filter(a => ADDR_RE.test(a));
 if(!TF[S.tf]) S.tf = "15m";
 
 async function getJSON(url){
@@ -683,12 +794,12 @@ async function tick(force){
   try{
     if(force || Date.now() - S.lastDiscover > 5*60e3){ try{ await discover(); }catch(e){ if(!S.trend.length) throw e; } }
     await loadPrices();
-    S.lastOk = Date.now(); S.error = "";
+    S.lastOk = Date.now(); S.error = ""; S.tickId = (S.tickId || 0) + 1;
   }catch(e){
     S.error = "Couldn't reach DexScreener. Check your connection; the page will keep retrying.";
   }
   S.busy = false; nextAt = Date.now() + S.interval * 1000;
-  render(); rugcheckQueue(); fillRecords();
+  render(); sampleEquity(false); rugcheckQueue(); fillRecords();
 }
 
 /* ---------- candles, trades and indicators ---------- */
@@ -926,79 +1037,155 @@ function tradesBlock(t, a){
 }
 
 /* ---------- demo wallet ---------- */
-const FEE = 0.01;
-function quoteBuy(a, usdIn){ const x = S.A.get(a); if(!x || !(x.px > 0) || !(usdIn > 0)) return null; const imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp); return {imp, fill, qty: usdIn * (1 - FEE) / fill}; }
-function quoteSell(a, qty){ const x = S.A.get(a); if(!x || !(x.px > 0)) return null; const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return {imp, px: x.px, out: gross * (1 - imp) * (1 - FEE)}; }
+let toastT;
+function toast(msg){ if(!msg) return; const el = $("toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 4500); }
+const feeRate = () => clamp(Number(S.demo.fee), 0, 20) / 100;
+function quoteBuy(a, usdIn){ const x = S.A.get(a); if(!x || !(x.px > 0) || !(usdIn > 0)) return null; const imp = x.liq ? usdIn / (x.liq / 2 + usdIn) : 0.5, fill = x.px * (1 + imp), fee = usdIn * feeRate(); return {imp, fill, fee, qty: (usdIn - fee) / fill}; }
+function quoteSell(a, qty){ const x = S.A.get(a); if(!x || !(x.px > 0)) return null; const gross = qty * x.px, imp = x.liq ? gross / (x.liq / 2 + gross) : 1; return {imp, px: x.px, out: gross * (1 - imp) * (1 - feeRate())}; }
+function demoValue(){
+  let held = 0, cost = 0, unpriced = 0;
+  Object.keys(S.demo.pos).forEach(a => { const p = S.demo.pos[a], q = quoteSell(a, p.qty); if(q) held += q.out; else { held += p.cost; unpriced++; } cost += p.cost; });
+  return {held, cost, unpriced, equity: S.demo.cash + held};
+}
 function demoQuoteText(a){
   const amt = Number(S.demoAmt), q = quoteBuy(a, amt), x = S.A.get(a);
   let s2 = "Demo cash: " + usd(S.demo.cash) + ". ";
   if(!(amt > 0)) return s2 + "Enter an amount to buy.";
   if(!q) return s2 + "No live price for this coin.";
-  s2 += "A " + usd(amt) + " buy would fill about " + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% above the quoted price, plus 1% costs.";
-  if(x && (x.signal === "rug" || x.signal === "avoid")) s2 += " This coin is marked " + SIG[x.signal][1] + ".";
+  s2 += "A " + usd(amt) + " buy would fill about " + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% above the quoted price, plus " + usd(q.fee) + " in costs.";
+  if(x && x.signal !== "buy") s2 += " The verdict on this coin is " + SIG[x.signal][1] + " right now.";
   return s2;
 }
-function demoBuy(a){
-  const amt = Number(S.demoAmt), t = S.tokens.get(a), x = S.A.get(a);
+function demoBuy(a, amt, auto){
+  const t = S.tokens.get(a), x = S.A.get(a);
   if(!(amt > 0)) return "Enter an amount first.";
   if(amt > S.demo.cash + 1e-9) return "Not enough demo cash. You have " + usd(S.demo.cash) + ".";
   const q = quoteBuy(a, amt); if(!q || !t) return "No live price for this coin, so the demo buy was not placed.";
-  const sym = (t.pair.baseToken || {}).symbol || "?", p = S.demo.pos[a] || {sym, qty: 0, cost: 0, at: Date.now()};
+  const sym = (t.pair.baseToken || {}).symbol || "?", p = S.demo.pos[a] || {sym, qty: 0, cost: 0, at: Date.now(), v: x.signal, checks: x.passN + "/" + x.checks.length, auto: !!auto};
   p.qty += q.qty; p.cost += amt; S.demo.pos[a] = p; S.demo.cash -= amt;
-  S.demo.hist.unshift({t: Date.now(), side: "buy", sym, a, usd: amt, px: q.fill, verdict: x.signal, checks: x.passN + "/" + x.checks.length});
-  S.demo.hist = S.demo.hist.slice(0, 200);
+  S.demo.hist.unshift({t: Date.now(), side: "buy", sym, a, usd: amt, px: q.fill, v: x.signal, checks: x.passN + "/" + x.checks.length, auto: !!auto});
+  S.demo.hist = S.demo.hist.slice(0, 300);
   S.pos[a] = {entry: p.cost / p.qty, at: p.at, peak: Math.max(x.px, (S.pos[a] && S.pos[a].peak) || 0)}; save("mr.pos", S.pos);
   if(!S.watch.includes(a)){ S.watch.unshift(a); save("mr.watch", S.watch); }
-  save("mr.demo", S.demo);
-  return "Bought " + usd(amt) + " of " + sym + " at " + price(q.fill) + ".";
+  save("mr.demo", S.demo); sampleEquity(true);
+  return (auto ? "Auto-bought " : "Bought ") + usd(amt) + " of " + sym + " at " + price(q.fill) + ".";
 }
-function demoSell(a, frac){
+function demoSell(a, frac, why){
   const p = S.demo.pos[a]; if(!p) return "";
   const qty = p.qty * frac, q = quoteSell(a, qty);
   if(!q) return "No live price for " + p.sym + " right now, so it cannot be sold. A coin that stops trading stays stuck like this.";
   const costPart = p.cost * frac; S.demo.cash += q.out;
-  S.demo.hist.unshift({t: Date.now(), side: "sell", sym: p.sym, a, usd: q.out, px: q.px, pnl: q.out - costPart});
-  S.demo.hist = S.demo.hist.slice(0, 200);
+  S.demo.hist.unshift({t: Date.now(), side: "sell", sym: p.sym, a, usd: q.out, px: q.px, pnl: q.out - costPart, cost: costPart, v: p.v, held: Date.now() - p.at, auto: !!why, why: why || ""});
+  S.demo.hist = S.demo.hist.slice(0, 300);
   p.qty -= qty; p.cost -= costPart;
   if(frac >= 1 || p.cost < 0.01){ delete S.demo.pos[a]; delete S.pos[a]; save("mr.pos", S.pos); }
-  save("mr.demo", S.demo);
-  return "Sold " + (frac >= 1 ? "all" : Math.round(frac * 100) + "%") + " of " + p.sym + " for " + usd(q.out) + ", " + (q.out >= costPart ? "a profit of " + usd(q.out - costPart) : "a loss of " + usd(costPart - q.out)) + ".";
+  save("mr.demo", S.demo); sampleEquity(true);
+  return (why ? "Auto-sold " : "Sold ") + (frac >= 1 ? "all" : Math.round(frac * 100) + "%") + " of " + p.sym + " for " + usd(q.out) + ", " + (q.out >= costPart ? "a profit of " + usd(q.out - costPart) : "a loss of " + usd(costPart - q.out)) + ".";
 }
 function demoClick(e){
   const b = e.target.closest("[data-dbuy]"), sl = e.target.closest("[data-dsell]");
   if(!b && !sl) return false;
-  S.demoMsg = b ? demoBuy(b.dataset.dbuy) : demoSell(sl.dataset.dsell, Number(sl.dataset.frac) || 1);
+  toast(b ? demoBuy(b.dataset.dbuy, Number(S.demoAmt)) : demoSell(sl.dataset.dsell, Number(sl.dataset.frac) || 1));
   render(); return true;
 }
 function demoBox(t){
   const id = esc(t.addr), p = S.demo.pos[t.addr], q = p ? quoteSell(t.addr, p.qty) : null;
   return '<div><h3>Demo trade, play money</h3><div class="plan"><label>Amount, $<input type="text" inputmode="decimal" id="da-' + id + '" data-damt="1" value="' + esc(S.demoAmt) + '"></label>' +
     '<p data-dquote="' + id + '">' + esc(demoQuoteText(t.addr)) + "</p>" +
-    (p ? "<p>Holding: paid " + usd(p.cost) + ", worth " + (q ? usd(q.out) + " if sold now (" + pct((q.out / p.cost - 1) * 100) + ")" : "unknown, no live price") + ".</p>" : "") +
+    (p ? '<p style="color:var(--fg)">Holding: paid ' + usd(p.cost) + ", worth " + (q ? usd(q.out) + " if sold now (" + pct((q.out / p.cost - 1) * 100) + ")" : "unknown, no live price") + ".</p>" : "") +
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn small primary" data-dbuy="' + id + '">Demo buy</button>' +
-    (p ? '<button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button><button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button>' : "") + "</div>" +
-    (S.demoMsg ? '<p style="color:var(--fg)">' + esc(S.demoMsg) + "</p>" : "") + "</div></div>";
+    (p ? '<button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button><button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button>' : "") +
+    '<button class="btn small" data-view="wallet">Open wallet</button></div></div></div>';
 }
+let eqSaved = 0;
+function sampleEquity(force){
+  const D = S.demo; if(!D.hist.length) return;
+  const v = demoValue().equity, last = D.eq[D.eq.length - 1], now = Date.now();
+  if(!force && last && now - last.t < 60e3 && Math.abs(v / last.v - 1) < 0.002) return;
+  D.eq.push({t: now, v: Math.round(v * 100) / 100});
+  if(D.eq.length > 1200) D.eq = D.eq.filter((_, i) => i % 2 === 0 || i > D.eq.length - 200);
+  if(force || now - eqSaved > 60e3){ save("mr.demo", D); eqSaved = now; }
+}
+function drawEquity(){
+  const cv = $("dwEq"), D = S.demo, pts = D.eq.length ? [{t: D.eq[0].t - 1, v: D.start}, ...D.eq] : [];
+  $("dwEqNote").textContent = pts.length < 3 ? "The line starts once you have made a trade and prices have refreshed a few times" : "";
+  const W = cv.clientWidth, H = cv.clientHeight; if(!W || !H) return;
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(k).trim(), dpr = window.devicePixelRatio || 1;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const padR = 64, padB = 20, padT = 10, pw = W - padR, ph = H - padB - padT;
+  g.font = "11px " + (css.getPropertyValue("--mono") || "monospace"); g.textBaseline = "middle";
+  let lo = Math.min(D.start, ...pts.map(p => p.v)), hi = Math.max(D.start, ...pts.map(p => p.v)); const pad = (hi - lo) * 0.12 || D.start * 0.02; lo -= pad; hi += pad;
+  const Y = v => padT + (hi - v) / (hi - lo) * ph;
+  [lo + (hi - lo) * 0.1, (lo + hi) / 2, hi - (hi - lo) * 0.1].forEach(v => { g.strokeStyle = col("--line"); g.lineWidth = 1; g.beginPath(); g.moveTo(0, Y(v)); g.lineTo(pw, Y(v)); g.stroke(); g.fillStyle = col("--muted"); g.textAlign = "left"; g.fillText(usd(v), pw + 6, Y(v)); });
+  g.strokeStyle = col("--muted"); g.setLineDash([5, 4]); g.beginPath(); g.moveTo(0, Y(D.start)); g.lineTo(pw, Y(D.start)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = col("--muted"); g.fillText("Start", 4, Y(D.start) - 8);
+  if(pts.length < 2) return;
+  const t0 = pts[0].t, t1 = pts[pts.length - 1].t, X = t => t1 === t0 ? pw : (t - t0) / (t1 - t0) * pw, up = pts[pts.length - 1].v >= D.start, c = col(up ? "--buy" : "--sell");
+  g.beginPath(); pts.forEach((p, i) => { i ? g.lineTo(X(p.t), Y(p.v)) : g.moveTo(X(p.t), Y(p.v)); });
+  g.strokeStyle = c; g.lineWidth = 2; g.stroke();
+  g.lineTo(pw, Y(D.start)); g.lineTo(0, Y(D.start)); g.closePath(); g.globalAlpha = 0.12; g.fillStyle = c; g.fill(); g.globalAlpha = 1;
+  g.fillStyle = c; g.beginPath(); g.arc(X(t1), Y(pts[pts.length - 1].v), 3.5, 0, 7); g.fill();
+  const tl = t => new Date(t).toLocaleString([], t1 - t0 > 20 * 3600e3 ? {day:"numeric", month:"short"} : {hour:"2-digit", minute:"2-digit"});
+  g.fillStyle = col("--muted"); g.textAlign = "left"; g.fillText(tl(t0), 0, H - 8); g.textAlign = "right"; g.fillText(tl(t1), pw, H - 8);
+}
+const tone = v => v > 0.005 ? "up" : v < -0.005 ? "down" : "";
+const sgn = v => (v >= 0 ? "+" : "−") + usd(Math.abs(v));
+function dur(ms){ const m = ms / 60000; return m < 1 ? "under a minute" : m < 90 ? Math.round(m) + " min" : m < 48 * 60 ? (m / 60).toFixed(1) + " h" : (m / 1440).toFixed(1) + " days"; }
+const when = t => new Date(t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+let coinSig = "";
 function renderDemo(){
-  const D = S.demo, ids = Object.keys(D.pos); let held = 0, cost = 0, unpriced = 0;
-  const rows = ids.map(a => { const p = D.pos[a], q = quoteSell(a, p.qty), x = S.A.get(a); if(q) held += q.out; else unpriced++; cost += p.cost; return {a, p, q, x}; });
-  const realised = D.hist.reduce((t, h) => t + (h.side === "sell" ? n(h.pnl) : 0), 0), equity = D.cash + held, open = held - (cost - rows.filter(r => !r.q).reduce((t, r) => t + r.p.cost, 0));
-  const tone = v => v > 0.005 ? "up" : v < -0.005 ? "down" : "";
-  const sgn = v => (v >= 0 ? "+" : "−") + usd(Math.abs(v));
-  $("demoNote").textContent = S.demoMsg || (!ids.length && !D.hist.length ? "Practise with play money before using real funds. Open any coin and use Demo buy. Fills include estimated price impact and 1% costs, and nothing here touches a real wallet." : "");
-  $("demoStats").innerHTML =
-    '<div><b class="' + tone(equity - D.start) + '">' + usd(equity) + "</b><span>Total value, from " + usd(D.start) + " (" + pct((equity / D.start - 1) * 100) + ")</span></div>" +
-    "<div><b>" + usd(D.cash) + "</b><span>Demo cash</span></div>" +
-    '<div><b class="' + tone(open) + '">' + sgn(open) + "</b><span>Open positions" + (unpriced ? ", " + unpriced + " without a live price" : "") + "</span></div>" +
-    '<div><b class="' + tone(realised) + '">' + sgn(realised) + "</b><span>Closed trades</span></div>";
-  $("demoTableBox").hidden = !ids.length;
-  $("demoRows").innerHTML = rows.map(({a, p, q, x}) => { const pl = q ? q.out - p.cost : null, id = esc(a);
-    return "<tr><td><b>" + esc(p.sym) + '</b></td><td class="l">' + (x ? '<span class="pill ' + SIG[x.signal][0] + '">' + SIG[x.signal][1] + "</span>" : '<span class="muted">no data</span>') + '</td><td class="num">' + usd(p.cost) + '</td><td class="num">' + (q ? usd(q.out) : "—") +
-      '</td><td class="num ' + (pl == null ? "muted" : tone(pl)) + '">' + (pl == null ? "no live price" : sgn(pl) + " (" + pct(pl / p.cost * 100) + ")") + '</td><td><button class="btn small" data-dsell="' + id + '" data-frac="0.5">Sell half</button> <button class="btn small" data-dsell="' + id + '" data-frac="1">Sell all</button></td></tr>'; }).join("");
-  $("demoHN").textContent = D.hist.length;
-  if(D.hist.length) $("demoHist").innerHTML = D.hist.slice(0, 25).map(h => '<li><span class="num muted">' + esc(new Date(h.t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) + '</span> <b class="' + (h.side === "buy" ? "up" : "down") + '">' + (h.side === "buy" ? "Buy" : "Sell") + "</b> <b>" + esc(h.sym) + "</b> " + usd(n(h.usd)) + " at " + price(h.px) +
-    (h.side === "buy" ? ' <span class="muted">(' + esc((SIG[h.verdict] || ["", ""])[1]) + ", " + esc(h.checks || "") + " checks)</span>" : ' <span class="' + tone(n(h.pnl)) + '">' + sgn(n(h.pnl)) + "</span>") + "</li>").join("");
-  else $("demoHist").innerHTML = '<li class="muted">No demo trades yet.</li>';
+  const D = S.demo, ids = Object.keys(D.pos), V = demoValue(), chg = V.equity - D.start;
+  $("dwTotal").textContent = usd(V.equity);
+  $("dwChange").innerHTML = '<span class="' + tone(chg) + '">' + sgn(chg) + " (" + pct((V.equity / D.start - 1) * 100) + ")</span> <span class=\"muted\">since starting with " + usd(D.start) + "</span>";
+  const sells = D.hist.filter(h => h.side === "sell"), realised = sells.reduce((t, h) => t + n(h.pnl), 0), open = V.held - V.cost;
+  $("dwKpis").innerHTML = "<div><b>" + usd(D.cash) + "</b><span>Cash</span></div><div><b>" + usd(V.held) + "</b><span>In " + ids.length + " position" + (ids.length === 1 ? "" : "s") + "</span></div>" +
+    '<div><b class="' + tone(open) + '">' + sgn(open) + "</b><span>Open profit or loss</span></div>" + '<div><b class="' + tone(realised) + '">' + sgn(realised) + "</b><span>Closed profit or loss</span></div>";
+  /* coin picker */
+  const list = [...S.A].map(([a, x]) => ({a, x, sym: ((S.tokens.get(a) || {pair:{}}).pair.baseToken || {}).symbol || "?"}))
+    .sort((p, q) => ({buy:0, hold:1, sell:2, avoid:3, rug:4})[p.x.signal] - ({buy:0, hold:1, sell:2, avoid:3, rug:4})[q.x.signal] || q.x.passN - p.x.passN);
+  const sig = list.map(o => o.a + o.x.signal + o.x.passN).join(","), sel = $("dwCoin");
+  if(sig !== coinSig && document.activeElement !== sel){
+    coinSig = sig; const cur = sel.value || S.demoCoin || "";
+    sel.innerHTML = list.length ? list.map(o => '<option value="' + esc(o.a) + '">' + esc(o.sym) + " · " + SIG[o.x.signal][1] + " · " + o.x.passN + "/" + o.x.checks.length + " checks</option>").join("") : '<option value="">Waiting for prices…</option>';
+    if(cur && list.some(o => o.a === cur)) sel.value = cur;
+  }
+  renderTicket();
+  /* results */
+  const wins = sells.filter(h => n(h.pnl) > 0), losses = sells.filter(h => n(h.pnl) <= 0), sumW = wins.reduce((t, h) => t + h.pnl, 0), sumL = losses.reduce((t, h) => t + h.pnl, 0);
+  const onBuy = sells.filter(h => h.v === "buy"), other = sells.filter(h => h.v !== "buy"), net = l => l.reduce((t, h) => t + n(h.pnl), 0);
+  $("dwPerf").innerHTML = !sells.length ? '<dt>Closed trades</dt><dd>none yet</dd>' :
+    "<dt>Closed trades</dt><dd>" + sells.length + "</dd><dt>Winners</dt><dd>" + wins.length + " of " + sells.length + " (" + Math.round(wins.length / sells.length * 100) + "%)</dd>" +
+    "<dt>Average win</dt><dd class=\"up\">" + (wins.length ? sgn(sumW / wins.length) : "—") + "</dd><dt>Average loss</dt><dd class=\"down\">" + (losses.length ? sgn(sumL / losses.length) : "—") + "</dd>" +
+    "<dt>Best / worst</dt><dd>" + sgn(Math.max(...sells.map(h => n(h.pnl)))) + " / " + sgn(Math.min(...sells.map(h => n(h.pnl)))) + "</dd>" +
+    "<dt>Won per $1 lost</dt><dd>" + (sumL < 0 ? "$" + (sumW / -sumL).toFixed(2) : "no losses yet") + "</dd>" +
+    "<dt>Bought on a Buy verdict</dt><dd class=\"" + tone(net(onBuy)) + "\">" + (onBuy.length ? onBuy.length + " closed, " + sgn(net(onBuy)) : "none closed") + "</dd>" +
+    "<dt>Bought on anything else</dt><dd class=\"" + tone(net(other)) + "\">" + (other.length ? other.length + " closed, " + sgn(net(other)) : "none closed") + "</dd>";
+  /* holdings */
+  $("dwHoldBox").hidden = !ids.length; $("dwEmpty").hidden = !!ids.length;
+  $("dwHoldNote").textContent = V.unpriced ? V.unpriced + " without a live price, shown at cost" : ids.length ? "Valued at what a sale would return now, after impact and costs" : "";
+  $("dwRows").innerHTML = ids.map(a => { const p = D.pos[a], q = quoteSell(a, p.qty), x = S.A.get(a), pl = q ? q.out - p.cost : null, id = esc(a);
+    return '<tr><td><button class="lnk" data-open="' + id + '">' + esc(p.sym) + "</button>" + (p.auto ? ' <span class="tag">auto</span>' : "") + '</td><td class="l">' + (x ? '<span class="pill ' + SIG[x.signal][0] + '">' + SIG[x.signal][1] + '</span> <span class="num muted">' + x.passN + "/" + x.checks.length + "</span>" : '<span class="muted">no data</span>') +
+      '</td><td class="num">' + (q ? usd(q.out) : "—") + '</td><td class="num ' + (pl == null ? "muted" : tone(pl)) + '">' + (pl == null ? "no live price" : sgn(pl) + " (" + pct(pl / p.cost * 100) + ")") +
+      '</td><td class="num">' + price(p.cost / p.qty) + '</td><td class="num">' + (x ? price(x.px) : "—") + '</td><td class="num">' + (q ? Math.round(q.out / V.equity * 100) + "%" : "—") + '</td><td class="num muted">' + dur(Date.now() - p.at) +
+      '</td><td class="l"><button class="btn small" data-dsell="' + id + '" data-frac="0.25">25%</button> <button class="btn small" data-dsell="' + id + '" data-frac="0.5">50%</button> <button class="btn small" data-dsell="' + id + '" data-frac="1">All</button></td></tr>'; }).join("");
+  /* history */
+  $("dwHistBox").hidden = !D.hist.length; $("dwHistEmpty").hidden = !!D.hist.length; $("dwHistNote").textContent = D.hist.length > 40 ? "Latest 40 of " + D.hist.length : "";
+  $("dwHist").innerHTML = D.hist.slice(0, 40).map(h => "<tr><td><b>" + esc(h.sym) + '</b></td><td class="l"><span class="' + (h.side === "buy" ? "up" : "down") + '">' + (h.side === "buy" ? "Buy" : "Sell") + '</span></td><td class="l num muted">' + esc(when(h.t)) + '</td><td class="num">' + usd(n(h.usd)) + '</td><td class="num">' + price(h.px) +
+    '</td><td class="num ' + (h.side === "sell" ? tone(n(h.pnl)) : "muted") + '">' + (h.side === "sell" ? sgn(n(h.pnl)) + (h.cost ? " (" + pct(h.pnl / h.cost * 100) + ")" : "") : "—") + '</td><td class="l muted">' +
+    esc(h.side === "buy" ? "Verdict was " + ((SIG[h.v] || ["", "unknown"])[1]) + (h.checks ? ", " + h.checks : "") + (h.auto ? ", auto" : "") : (h.why ? "Auto: " + h.why : "Manual") + (h.held ? ", held " + dur(h.held) : "")) + "</td></tr>").join("");
+  if(S.view === "wallet") drawEquity();
+}
+function renderTicket(){
+  const a = $("dwCoin").value, amt = Number(S.demoAmt), q = a ? quoteBuy(a, amt) : null, x = S.A.get(a), warn = $("dwWarn"); let w = "";
+  $("dwPreview").innerHTML = !a || !x ? "<dt>Preview</dt><dd>choose a coin</dd>" : !q ? "<dt>Cash available</dt><dd>" + usd(S.demo.cash) + "</dd><dt>Preview</dt><dd>enter an amount</dd>" :
+    "<dt>Cash available</dt><dd>" + usd(S.demo.cash) + "</dd><dt>Verdict now</dt><dd>" + SIG[x.signal][1] + ", " + x.passN + "/" + x.checks.length + " checks</dd><dt>Quoted price</dt><dd>" + price(x.px) + "</dd><dt>Your fill</dt><dd>" + price(q.fill) + " (+" + (q.imp * 100).toFixed(q.imp < 0.01 ? 2 : 1) + "% impact)</dd>" +
+    "<dt>Costs</dt><dd>" + usd(q.fee) + "</dd><dt>Stop-loss level</dt><dd>" + price(q.fill * 0.75) + "</dd><dt>Cash after</dt><dd>" + usd(Math.max(0, S.demo.cash - amt)) + "</dd>";
+  if(x && q){
+    if(amt > S.demo.cash + 1e-9) w = "That is more than your demo cash.";
+    else if(x.signal !== "buy") w = "The verdict on this coin is " + SIG[x.signal][1] + " right now, not Buy.";
+    else if(q.imp > 0.02) w = "A buy this size would move the price " + (q.imp * 100).toFixed(1) + "%. A smaller amount would fill better.";
+  }
+  warn.hidden = !w; warn.textContent = w;
 }
 
 /* ---------- checklist, holders, track record ---------- */
@@ -1028,11 +1215,37 @@ function holdersBlock(t, a){
 }
 
 S.rec = load("mr.rec", []); if(!Array.isArray(S.rec)) S.rec = [];
+S.rec.forEach(r => { if(!r.st) r.st = "open"; if(!(r.hi > 0)) r.hi = r.px; if(!(r.lo > 0)) r.lo = r.px; if(!(r.last > 0)) r.last = r.px; if(!r.r) r.r = {}; });
+S.sf = "all";
 const HZ = {h1: 3600e3, h6: 6 * 3600e3, h24: 24 * 3600e3};
 function logBuy(a, t, x){
-  if(!(x.px > 0) || S.rec.some(r => r.a === a && Date.now() - r.t < 24 * 3600e3)) return;
-  S.rec.unshift({a, sym: (t.pair.baseToken || {}).symbol || "?", pool: t.pair.pairAddress || "", t: Date.now(), px: x.px, score: x.score, conf: x.conf, pass: x.passN, of: x.checks.length, r: {}, tries: 0});
-  S.rec = S.rec.slice(0, 200); save("mr.rec", S.rec); renderRec();
+  const now = Date.now();
+  if(!(x.px > 0) || S.rec.some(r => r.a === a && (r.st === "open" || (r.x && now - r.x.t < 3600e3)))) return;
+  S.rec.unshift({a, sym: (t.pair.baseToken || {}).symbol || "?", pool: t.pair.pairAddress || "", t: now, px: x.px, score: x.score, conf: x.conf, pass: x.passN, of: x.checks.length, r: {}, tries: 0, st: "open", hi: x.px, lo: x.px, last: x.px, lastT: now});
+  S.rec = S.rec.slice(0, 300); save("mr.rec", S.rec);
+  if(S.demo.auto.on){ const amt = Number(S.demo.auto.amt); if(amt > 0 && !S.demo.pos[a]) toast(demoBuy(a, Math.min(amt, S.demo.cash), true)); }
+}
+let recSaved = 0;
+function updateRecs(){
+  const now = Date.now(); let dirty = false; const closed = [];
+  S.rec.forEach(r => {
+    if(r.st !== "open") return;
+    const x = S.A.get(r.a);
+    if(x && x.px > 0){
+      const gap = !!r.lastT && now - r.lastT > 15 * 60e3;
+      if(x.px > r.hi) r.hi = x.px; if(x.px < r.lo) r.lo = x.px;
+      r.last = x.px; r.lastT = now; r.miss = 0; r.now = x.signal;
+      let why = x.signal === "sell" ? "Sell signal" : x.signal === "rug" ? "Rug risk" : x.signal === "avoid" ? "Liquidity fell under $10k" : "";
+      if(!why && x.px <= r.px * 0.75) why = "Stop-loss rule, 25% down";
+      if(!why && r.hi >= r.px * 1.3 && x.px <= r.hi * 0.65) why = "Trailing stop rule";
+      if(why){ r.st = "closed"; r.x = {t: now, px: x.px, why, gap}; dirty = true; closed.push(r); }
+    } else if(S.tickId && r.seen !== S.tickId){
+      r.seen = S.tickId; r.miss = (r.miss || 0) + 1;
+      if(r.miss >= 20){ r.st = "closed"; r.x = {t: now, px: r.last, why: "No longer listed", gap: false, stale: true}; dirty = true; closed.push(r); }
+    }
+  });
+  closed.forEach(r => { const p = S.demo.pos[r.a]; if(p && p.auto) toast(demoSell(r.a, 1, r.x.why)); });
+  if(dirty || now - recSaved > 60e3){ save("mr.rec", S.rec); recSaved = now; }
 }
 let filling = false;
 async function fillRecords(){
@@ -1056,19 +1269,40 @@ async function fillRecords(){
   filling = false;
 }
 function renderRec(){
-  const N = S.rec.length;
-  $("recNote").textContent = !N ? "No buy signals logged yet. Each one the page gives while it is open is recorded here, then checked against the price 1, 6 and 24 hours later. This is how you find out whether the rules are any good."
-    : N + " buy signal" + (N === 1 ? "" : "s") + " logged in this browser. " + (N < 30 ? "That is too few to judge the rules by. Treat the numbers as anecdotes until there are 30 or more measured signals." : "Returns are measured from the price at the signal, before trading costs and slippage.");
   const med = v => { const s2 = [...v].sort((x, y) => x - y), m = Math.floor(s2.length / 2); return s2.length % 2 ? s2[m] : (s2[m - 1] + s2[m]) / 2; };
-  $("recStats").innerHTML = !N ? "" : Object.keys(HZ).map(k => {
+  const pl = r => r.st === "closed" ? r.x.px / r.px - 1 : r.last / r.px - 1;
+  const closed = S.rec.filter(r => r.st === "closed" && r.x && r.x.px > 0), open = S.rec.filter(r => r.st === "open"), N = S.rec.length;
+  const cp = closed.map(pl), wins = cp.filter(v => v > 0).length, avg = cp.length ? cp.reduce((t, v) => t + v, 0) / cp.length : 0;
+  $("soHead").innerHTML = cp.length ? '<span class="' + tone(avg) + '">' + pct(avg * 100) + "</span>" : "—";
+  $("soSub").textContent = cp.length ? "Average result per closed buy signal. " + wins + " of " + cp.length + " made money. " + open.length + " still open." : open.length ? open.length + " buy signal" + (open.length === 1 ? " is" : "s are") + " open and none has reached an exit yet." : "Nothing logged yet.";
+  const op = open.map(pl), oavg = op.length ? op.reduce((t, v) => t + v, 0) / op.length : 0, held = closed.map(r => r.x.t - r.t);
+  $("soKpis").innerHTML = !N ? "" :
+    "<div><b>" + (cp.length ? Math.round(wins / cp.length * 100) + "%" : "—") + "</b><span>Closed signals that made money</span></div>" +
+    '<div><b class="' + (cp.length ? tone(med(cp)) : "") + '">' + (cp.length ? pct(med(cp) * 100) : "—") + "</b><span>Median closed result</span></div>" +
+    "<div><b>" + (cp.length ? pct(Math.max(...cp) * 100) + " / " + pct(Math.min(...cp) * 100) : "—") + "</b><span>Best and worst closed</span></div>" +
+    '<div><b class="' + (cp.length ? tone(avg * 100 * cp.length) : "") + '">' + (cp.length ? sgn(avg * 100 * cp.length) : "—") + "</b><span>$100 on every closed signal" + (cp.length ? ", or " + sgn((avg - 0.02) * 100 * cp.length) + " after 2% costs" : "") + "</span></div>" +
+    '<div><b class="' + (op.length ? tone(oavg) : "") + '">' + (op.length ? pct(oavg * 100) : "—") + "</b><span>Average across " + open.length + " open</span></div>" +
+    "<div><b>" + (held.length ? dur(med(held)) : "—") + "</b><span>Typical time from buy to exit</span></div>";
+  $("soNote").textContent = !N ? "" : (cp.length < 30 ? "Only " + cp.length + " closed so far, which is too few to judge the rules by. Treat these as anecdotes until there are 30 or more. " : "") + "Results are price to price, before costs. Signals and exits are only seen while this page is open.";
+  const seq = [...closed].sort((x, y) => x.x.t - y.x.t);
+  $("soBars").innerHTML = seq.length ? seq.map(r => { const v = pl(r), h = Math.max(3, Math.min(1, Math.abs(v)) * 46).toFixed(0);
+    return '<div class="bar2" title="' + esc(r.sym + " " + pct(v * 100)) + '"><i class="' + (v >= 0 ? "pos" : "neg") + '" style="height:' + h + 'px"></i></div>'; }).join("") : '<span class="muted">Bars appear here as signals close.</span>';
+  $("soConf").innerHTML = ["Strong", "Moderate", "Weak"].map(c => { const cl = closed.filter(r => r.conf === c), v = cl.map(pl), a = v.length ? v.reduce((t, z) => t + z, 0) / v.length : 0;
+    return "<tr><td><b>" + c + '</b></td><td class="num">' + cl.length + '</td><td class="num">' + (v.length ? v.filter(z => z > 0).length + " of " + v.length : "—") + '</td><td class="num ' + (v.length ? tone(a) : "muted") + '">' + (v.length ? pct(a * 100) : "—") + '</td><td class="num">' + open.filter(r => r.conf === c).length + "</td></tr>"; }).join("");
+  $("recStats").innerHTML = Object.keys(HZ).map(k => {
     const v = S.rec.map(r => r.r[k]).filter(x => typeof x === "number"), lab = {h1:"1 hour", h6:"6 hours", h24:"24 hours"}[k];
     if(!v.length) return "<div><b class=\"muted\">—</b><span>After " + lab + ": nothing measured yet</span></div>";
-    const wins = v.filter(x => x > 0).length, m = med(v) * 100;
-    return '<div><b class="' + (m >= 0 ? "up" : "down") + '">' + pct(m) + "</b><span>Median after " + lab + "</span><span>" + wins + " of " + v.length + " were up, worst " + pct(Math.min(...v) * 100) + ", best " + pct(Math.max(...v) * 100) + "</span></div>";
+    const m = med(v) * 100;
+    return '<div><b class="' + tone(m) + '">' + pct(m) + "</b><span>Median after " + lab + "</span><span>" + v.filter(x => x > 0).length + " of " + v.length + " were up</span></div>";
   }).join("");
-  $("recTableBox").hidden = !N;
-  const cell = (r, k) => { const x = r.r[k]; return x === undefined ? '<td class="num muted">' + (Date.now() < r.t + HZ[k] ? "pending" : "checking") + "</td>" : x === null ? '<td class="num muted">no data</td>' : '<td class="num ' + (x >= 0 ? "up" : "down") + '">' + pct(x * 100) + "</td>"; };
-  $("recRows").innerHTML = S.rec.slice(0, 15).map(r => "<tr><td><b>" + esc(r.sym) + '</b></td><td class="l num muted">' + esc(new Date(r.t).toLocaleString([], {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"})) + '</td><td class="num">' + price(r.px) + '</td><td class="num">' + esc(r.pass + "/" + r.of) + "</td>" + cell(r, "h1") + cell(r, "h6") + cell(r, "h24") + "</tr>").join("");
+  const rows = S.rec.filter(r => S.sf === "all" || r.st === S.sf);
+  $("soBox").hidden = !rows.length; $("soEmpty").hidden = !!rows.length;
+  if(!rows.length && N) $("soEmpty").textContent = "No " + S.sf + " signals right now."; 
+  $("soRows").innerHTML = rows.slice(0, 80).map(r => { const v = pl(r), isOpen = r.st === "open", end = isOpen ? Date.now() : r.x.t;
+    return '<tr><td><button class="lnk" data-open="' + esc(r.a) + '">' + esc(r.sym) + '</button></td><td class="l">' +
+      (isOpen ? '<span class="pill p-low">Open</span>' + (r.now && r.now !== "buy" ? ' <span class="muted">now ' + SIG[r.now][1] + "</span>" : "") : '<span class="pill ' + (v >= 0 ? "p-buy" : "p-sell") + '">Closed</span> <span class="muted">' + esc(r.x.why) + (r.x.gap ? ", seen late" : "") + (r.x.stale ? ", last known price" : "") + "</span>") +
+      '</td><td class="l num muted">' + esc(when(r.t)) + '</td><td class="num">' + esc(r.pass + "/" + r.of) + (r.conf ? ' <span class="muted">' + esc(r.conf.toLowerCase()) + "</span>" : "") + '</td><td class="num">' + price(r.px) + '</td><td class="num">' + price(isOpen ? r.last : r.x.px) +
+      '</td><td class="num ' + tone(v) + '"><b>' + pct(v * 100) + '</b></td><td class="num muted">' + pct((r.hi / r.px - 1) * 100) + " / " + pct((r.lo / r.px - 1) * 100) + '</td><td class="num muted">' + dur(end - r.t) + "</td></tr>"; }).join("");
 }
 
 /* ---------- render ---------- */
@@ -1091,6 +1325,7 @@ function recompute(){
     }
   });
   if(changed) save("mr.log", S.log);
+  updateRecs();
 }
 function render(){
   recompute();
@@ -1104,7 +1339,7 @@ function render(){
   $("cWatch").textContent = S.watch.length; $("cTrend").textContent = S.trend.length; $("cFresh").textContent = S.fresh.filter(a => S.A.has(a)).length;
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", S.tab === t.dataset.tab));
   const b = $("banner"); b.hidden = !S.error; b.textContent = S.error;
-  renderSpot(); renderLog(); renderDemo();
+  renderSpot(); renderLog(); renderDemo(); renderRec(); renderNav();
 
   const ids = S.tab === "watch" ? S.watch : S.tab === "fresh" ? S.fresh : S.trend;
   const loaded = ids.filter(a => S.A.has(a)).map(a => ({t:S.tokens.get(a), a:S.A.get(a)}));
@@ -1246,7 +1481,7 @@ $("rows").addEventListener("click", e => {
   const en = e.target.closest("[data-enter]");
   if(en){ const t = S.tokens.get(en.dataset.enter), px = t && Number(t.pair.priceUsd); if(px > 0){ S.pos[en.dataset.enter] = {entry:px, at:Date.now(), peak:px}; save("mr.pos", S.pos); if(!S.watch.includes(en.dataset.enter)){ S.watch.unshift(en.dataset.enter); save("mr.watch", S.watch); } render(); } return; }
   const cl = e.target.closest("[data-clear]"); if(cl){ delete S.pos[cl.dataset.clear]; save("mr.pos", S.pos); render(); return; }
-  if(e.target.closest("a") || e.target.closest("tr.detail")) return;
+  if(e.target.closest("a") || e.target.closest("[data-view]") || e.target.closest("tr.detail")) return;
   const r = e.target.closest("tr.row"); if(!r) return;
   const a = r.dataset.a; S.expanded.has(a) ? S.expanded.delete(a) : S.expanded.add(a); render();
 });
@@ -1254,13 +1489,6 @@ $("rows").addEventListener("keydown", e => {
   if((e.key === "Enter" || e.key === " ") && e.target.matches("tr.row")){ e.preventDefault(); e.target.click(); }
 });
 $("rows").addEventListener("input", e => {
-  const da = e.target.closest("[data-damt]");
-  if(da){
-    S.demoAmt = da.value.replace(/[^0-9.]/g, ""); save("mr.damt", S.demoAmt);
-    document.querySelectorAll("[data-dquote]").forEach(o => { o.textContent = demoQuoteText(o.dataset.dquote); });
-    document.querySelectorAll("[data-damt]").forEach(o => { if(o !== da) o.value = da.value; });
-    return;
-  }
   const el = e.target.closest("[data-plan]"); if(!el) return;
   S.plan[el.dataset.plan] = el.value.replace(/[^0-9.]/g, ""); save("mr.plan", S.plan);
   document.querySelectorAll("[data-planout]").forEach(o => { o.textContent = planText(o.dataset.planout); });
@@ -1280,9 +1508,7 @@ $("rows").addEventListener("pointerout", e => { if(e.pointerType === "mouse") ho
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawCharts, 150); });
 $("spot").addEventListener("click", e => {
   const c = e.target.closest("[data-go]"); if(!c) return;
-  const a = c.dataset.go; S.filter = "all"; S.tab = S.watch.includes(a) ? "watch" : S.trend.includes(a) ? "trend" : "fresh"; S.expanded.add(a); render();
-  const row = [...document.querySelectorAll("tr.row")].find(r => r.dataset.a === a);
-  if(row) row.scrollIntoView({behavior:"smooth", block:"start"});
+  openCoin(c.dataset.go);
 });
 document.querySelectorAll(".tally button").forEach(b => b.addEventListener("click", () => { S.filter = S.filter === b.dataset.filter ? "all" : b.dataset.filter; render(); }));
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { S.tab = t.dataset.tab; save("mr.tab", S.tab); render(); }));
@@ -1330,24 +1556,63 @@ setInterval(() => {
   if(S.error) el.innerHTML = '<span class="dot err"></span>Offline, retrying in ' + left + " s";
   else if(S.lastOk) el.innerHTML = '<span class="dot live"></span>Updated ' + new Date(S.lastOk).toLocaleTimeString() + ", next in " + left + " s";
 }, 1000);
-let clearArmed = 0;
-$("recClear").addEventListener("click", e => {
-  if(Date.now() - clearArmed < 4000){ S.rec = []; save("mr.rec", S.rec); renderRec(); e.target.textContent = "Clear record"; clearArmed = 0; }
-  else { clearArmed = Date.now(); e.target.textContent = "Tap again to clear"; setTimeout(() => { if(clearArmed){ e.target.textContent = "Clear record"; clearArmed = 0; } }, 4000); }
+/* ---------- sections, wallet controls, start ---------- */
+const VIEWS = ["markets", "wallet", "outcomes", "method"];
+S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : load("mr.view", "markets"); if(!VIEWS.includes(S.view)) S.view = "markets";
+function applyView(){
+  VIEWS.forEach(v => { $("v-" + v).hidden = S.view !== v; });
+  document.querySelectorAll("nav.views [data-view]").forEach(b => b.setAttribute("aria-selected", b.dataset.view === S.view));
+  save("mr.view", S.view);
+  if(S.view === "markets") drawCharts(); if(S.view === "wallet") drawEquity();
+}
+function renderNav(){
+  let buys = 0; S.A.forEach(x => { if(x.signal === "buy") buys++; });
+  $("nvBuy").textContent = buys ? buys + " buy" : "";
+  const D = S.demo, v = demoValue().equity; $("nvWallet").textContent = D.hist.length ? pct((v / D.start - 1) * 100) : "";
+  $("nvWallet").className = "bdg " + (D.hist.length ? tone(v - D.start) : "");
+  const o = S.rec.filter(r => r.st === "open").length; $("nvOut").textContent = o ? o + " open" : "";
+}
+function openCoin(a){
+  if(!ADDR_RE.test(a)) return;
+  if(!S.watch.includes(a) && !S.trend.includes(a) && !S.fresh.includes(a)){ S.watch.unshift(a); save("mr.watch", S.watch); }
+  S.view = "markets"; applyView(); S.filter = "all"; S.tab = S.watch.includes(a) ? "watch" : S.trend.includes(a) ? "trend" : "fresh"; S.expanded.add(a); render();
+  const row = [...document.querySelectorAll("tr.row")].find(r => r.dataset.a === a);
+  if(row) row.scrollIntoView({behavior: "smooth", block: "start"});
+}
+document.addEventListener("click", e => {
+  const v = e.target.closest("[data-view]"); if(v){ S.view = v.dataset.view; applyView(); window.scrollTo({top: 0}); return; }
+  const o = e.target.closest("[data-open]"); if(o){ openCoin(o.dataset.open); return; }
+  const sf = e.target.closest("[data-sf]"); if(sf){ S.sf = sf.dataset.sf; document.querySelectorAll("[data-sf]").forEach(b => b.classList.toggle("on", b === sf)); renderRec(); return; }
+  const pc = e.target.closest("[data-pc]"); if(pc){ S.demoAmt = String(Math.floor(S.demo.cash * Number(pc.dataset.pc) * 100) / 100); save("mr.damt", S.demoAmt); document.querySelectorAll("[data-damt]").forEach(i => { i.value = S.demoAmt; }); renderTicket(); return; }
+  if(e.target.closest("#v-wallet")) demoClick(e);
 });
-$("demoBox").addEventListener("click", e => { demoClick(e); });
-$("demoStart").value = S.demo.start;
-let resetArmed = 0;
-$("demoReset").addEventListener("click", e => {
-  if(Date.now() - resetArmed < 4000){
-    const st = Number(String($("demoStart").value).replace(/[^0-9.]/g, "")) || 1000;
-    Object.keys(S.demo.pos).forEach(a => { delete S.pos[a]; }); save("mr.pos", S.pos);
-    S.demo = {start: st, cash: st, pos: {}, hist: []}; save("mr.demo", S.demo); S.demoMsg = "Demo wallet reset to " + usd(st) + ".";
-    e.target.textContent = "Reset wallet"; resetArmed = 0; render();
-  } else { resetArmed = Date.now(); e.target.textContent = "Tap again to reset"; setTimeout(() => { if(resetArmed){ e.target.textContent = "Reset wallet"; resetArmed = 0; } }, 4000); }
+document.addEventListener("input", e => {
+  const da = e.target.closest("[data-damt]"); if(!da) return;
+  S.demoAmt = da.value.replace(/[^0-9.]/g, ""); save("mr.damt", S.demoAmt);
+  document.querySelectorAll("[data-dquote]").forEach(o => { o.textContent = demoQuoteText(o.dataset.dquote); });
+  document.querySelectorAll("[data-damt]").forEach(o => { if(o !== da) o.value = da.value; });
+  renderTicket();
 });
+$("dwAmt").value = S.demoAmt;
+$("dwCoin").addEventListener("change", e => { S.demoCoin = e.target.value; renderTicket(); });
+$("dwBuy").addEventListener("click", () => { const a = $("dwCoin").value; if(!a){ toast("Choose a coin first."); return; } toast(demoBuy(a, Number(S.demoAmt))); render(); });
+$("dwAuto").checked = !!S.demo.auto.on; $("dwAutoAmt").value = S.demo.auto.amt;
+$("dwAuto").addEventListener("change", e => { S.demo.auto.on = e.target.checked; save("mr.demo", S.demo); toast(e.target.checked ? "Auto-follow is on. New buy signals will be bought while this page is open." : "Auto-follow is off. Existing positions stay as they are."); });
+$("dwAutoAmt").addEventListener("input", e => { S.demo.auto.amt = e.target.value.replace(/[^0-9.]/g, ""); save("mr.demo", S.demo); });
+$("demoStart").value = S.demo.start; $("demoFee").value = S.demo.fee;
+$("demoFee").addEventListener("input", e => { const f = Number(e.target.value.replace(/[^0-9.]/g, "")); if(isFinite(f)){ S.demo.fee = clamp(f, 0, 20); save("mr.demo", S.demo); renderDemo(); } });
+function twoTap(btn, label, armedLabel, fn){ let armed = 0; btn.addEventListener("click", () => {
+  if(Date.now() - armed < 4000){ armed = 0; btn.textContent = label; fn(); }
+  else { armed = Date.now(); btn.textContent = armedLabel; setTimeout(() => { if(armed){ armed = 0; btn.textContent = label; } }, 4000); } }); }
+twoTap($("demoReset"), "Reset wallet", "Tap again to reset", () => {
+  const st = Number(String($("demoStart").value).replace(/[^0-9.]/g, "")) || 1000;
+  Object.keys(S.demo.pos).forEach(a => { delete S.pos[a]; }); save("mr.pos", S.pos);
+  S.demo = {start: st, cash: st, fee: S.demo.fee, pos: {}, hist: [], eq: [], auto: S.demo.auto}; save("mr.demo", S.demo); toast("Demo wallet reset to " + usd(st) + "."); render();
+});
+twoTap($("recClear"), "Clear signal history", "Tap again to clear", () => { S.rec = []; save("mr.rec", S.rec); renderRec(); renderNav(); toast("Signal history cleared."); });
+window.addEventListener("resize", () => { if(S.view === "wallet") drawEquity(); });
+applyView();
 renderLog();
-renderRec();
 render();
 tick(true);
 </script>
