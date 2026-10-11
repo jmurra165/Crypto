@@ -39,6 +39,11 @@ jobs:
             git pull -q --ff-only origin main || true
             node collect.mjs || echo "tracker run failed"
             ( cd data && git add -A && { git commit -q --amend -m "Tracker data" || true; } && git push -q -f origin HEAD:data ) || echo "saving results failed"
+            # Backup: three rolling daily copies, so one bad write cannot lose the record.
+            slot=$(( 10#$(date -u +%j) % 3 ))
+            if [ ! -f "/tmp/backup-$slot-$(date -u +%H)" ]; then
+              git -C data push -q -f origin "HEAD:refs/heads/data-backup-$slot" && touch "/tmp/backup-$slot-$(date -u +%H)" || echo "backup failed"
+            fi
             now=$(date +%s)
             if [ "$now" -ge "$end" ]; then break; fi
             wait=$(( 90 - (now - start) ))

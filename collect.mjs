@@ -30,6 +30,14 @@ const SKIP = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5Au
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const num = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 function readJSON(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return fallback; } }
+// For the records that must never be silently reset: a missing file means "start fresh",
+// but a file that exists and cannot be read stops the run before anything is overwritten.
+function readState(file, fallback) {
+  if (!fs.existsSync(file)) return fallback;
+  const text = fs.readFileSync(file, "utf8");
+  try { return JSON.parse(text); } catch (e) { throw new Error("Saved file " + path.basename(file) + " is unreadable, stopping so it is not overwritten"); }
+}
+function writeJSON(file, obj) { const tmp = file + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(obj)); fs.renameSync(tmp, file); }
 
 export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause = 300 } = {}) {
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
@@ -40,7 +48,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
 
   const dataDir = path.join(root, "data");
   fs.mkdirSync(dataDir, { recursive: true });
-  const state = readJSON(path.join(dataDir, "signals.json"), {});
+  const state = readState(path.join(dataDir, "signals.json"), {});
   const signals = Array.isArray(state.signals) ? state.signals : [];
   const cache = readJSON(path.join(dataDir, "cache.json"), {});
   const peak = cache.peak || {}, rcCache = cache.rc || {};
@@ -111,24 +119,30 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   if (!priceOk) {
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
-    fs.writeFileSync(path.join(dataDir, "signals.json"), JSON.stringify({ meta, signals }));
-    fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, disc, run: runNo, lastSnap: num(cache.lastSnap) }));
+    writeJSON(path.join(dataDir, "signals.json"), { meta, signals });
+    writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: num(cache.lastSnap) });
     return { meta, signals };
   }
   meta.lastGood = now;
 
   // 3. First pass on market data alone, to decide which coins are worth an on-chain lookup
   const histOf = a => ({ pts: [], peakLiq: num(peak[a]) });
-  const need = [];
+  //    Coins with an open signal or held by a wallet always get one; after that, the 60 strongest
+  //    scores with tradeable liquidity, so their holder figures are on record for later analysis.
+  const heldIds = [...new Set(["wallet.json", "wallet-b.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
+  const need = [], cand = [];
   tokens.forEach((t, a) => {
     const x = analyse(t, histOf(a), undefined, boosts.get(a) || 0, null, null);
-    if (openIds.includes(a) || (x.score >= BUY_AT && x.liq >= 10000 && x.rugLevel !== "high")) need.push(a);
+    if (openIds.includes(a) || heldIds.includes(a)) need.push(a);
+    else if (x.score >= 20 && x.liq >= 10000) cand.push([a, x.score]);
   });
-  let rcFails = 0;
-  for (const a of need.slice(0, 40)) {
+  cand.sort((p, q) => q[1] - p[1]).slice(0, 60).forEach(k => need.push(k[0]));
+  let rcFails = 0, rcDone = 0;
+  for (const a of need) {
     const c = rcCache[a];
     if (c && now - c.at < 25 * 60e3) continue;
-    if (rcFails >= 3) break;
+    if (rcFails >= 3 || rcDone >= 25) break;
+    rcDone++;
     try {
       let j;
       try { j = await getJSON(RUGCHECK + a + "/report"); } catch (e) { j = await getJSON(RUGCHECK + a + "/report/summary"); }
@@ -145,6 +159,30 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     const rc = need.includes(a) ? (rcCache[a] || { ok: false, at: now }) : undefined;
     A.set(a, analyse(t, histOf(a), rc, boosts.get(a) || 0, null, null));
   });
+
+  // 4b. Who is trading: distinct buyers and sellers over the last 15 minutes, from recent trades.
+  //     GeckoTerminal's limits allow only a couple of these per run, so held coins and current buys come first.
+  const flow = cache.flow || {};
+  let gtWait = num(cache.gtWait);
+  if (now >= gtWait) {
+    const order = [...new Set([...heldIds, ...[...A].filter(([, x]) => x.signal === "buy").map(([a]) => a), ...need])]
+      .filter(a => tokens.has(a) && tokens.get(a).pair.pairAddress && !(flow[a] && now - flow[a].at < 10 * 60e3));
+    for (const a of order.slice(0, 2)) {
+      try {
+        const j = await getJSON(GT + "/pools/" + encodeURIComponent(tokens.get(a).pair.pairAddress) + "/trades");
+        const list = ((j || {}).data || []).map(d => { const x = (d || {}).attributes || {}; return { t: Date.parse(x.block_timestamp), kind: x.kind, usd: Number(x.volume_in_usd) || 0, w: x.tx_from_address || "" }; })
+          .filter(x => isFinite(x.t) && now - x.t <= 15 * 60e3 && (x.kind === "buy" || x.kind === "sell"));
+        const buys = list.filter(x => x.kind === "buy"), sells = list.filter(x => x.kind === "sell"), sum = l => l.reduce((s, x) => s + x.usd, 0);
+        const byW = new Map(); list.forEach(x => byW.set(x.w, (byW.get(x.w) || 0) + x.usd));
+        const tot = sum(list), top = tot > 0 ? Math.max(0, ...byW.values()) / tot : 0;
+        flow[a] = { at: now, ub: new Set(buys.map(x => x.w)).size, us: new Set(sells.map(x => x.w)).size, nb: buys.length, ns: sells.length, bu: Math.round(sum(buys)), su: Math.round(sum(sells)), top: Math.round(top * 1000) / 1000 };
+      } catch (e) {
+        if (/429/.test(e.message)) { gtWait = now + 5 * 60e3; errors.push("trade lookups paused for 5 minutes (rate limit)"); break; }
+        flow[a] = { at: now, err: 1 };
+      }
+      await sleep(pause * 4);
+    }
+  }
 
   // 5. Follow open signals, close the ones that hit an exit
   signals.forEach(r => {
@@ -187,7 +225,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
 
   // 6a. Auto wallet: play money that buys every new buy signal and sells when the signal exits.
   const cfg = Object.assign({ startSol: 10, perSignalPct: 5, feePct: 1, resetId: 0 }, (readJSON(path.join(root, "config.json"), {}).wallet) || {});
-  let W = readJSON(path.join(dataDir, "wallet.json"), null);
+  let W = readState(path.join(dataDir, "wallet.json"), null);
   if (!W || W.resetId !== cfg.resetId || !W.pos) W = { resetId: cfg.resetId, started: now, start: cfg.startSol, cash: cfg.startSol, pos: {}, hist: [], eq: [], skipped: 0 };
   W.cfg = cfg;
   if (solPx > 0) {
@@ -221,7 +259,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     if (!last || now - last.t >= 4.5 * 60e3) W.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
     if (W.eq.length > 2500) W.eq = W.eq.filter((_, i) => i % 2 === 0 || i > W.eq.length - 400);
     W.hist = W.hist.slice(0, 800);
-    fs.writeFileSync(path.join(dataDir, "wallet.json"), JSON.stringify(W));
+    writeJSON(path.join(dataDir, "wallet.json"), W);
     meta.wallet = Math.round(equity * 1e4) / 1e4;
   } else errors.push("no SOL price, auto wallet not updated");
 
@@ -229,7 +267,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   //     so the two can be compared on the same market.
   {
     const bid = num(cfg.resetIdB);
-    let B = readJSON(path.join(dataDir, "wallet-b.json"), null);
+    let B = readState(path.join(dataDir, "wallet-b.json"), null);
     if (!B || B.resetId !== bid || !B.pos) B = { resetId: bid, started: now, start: cfg.startSol, cash: cfg.startSol, pos: {}, hist: [], eq: [], skipped: 0, pend: {}, cool: {} };
     B.pend = B.pend || {}; B.cool = B.cool || {};
     B.cfg = { feePct: cfg.feePct };
@@ -284,41 +322,57 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       if (!last || now - last.t >= 4.5 * 60e3) B.eq.push({ t: now, v: Math.round(equity * 1e4) / 1e4 });
       if (B.eq.length > 2500) B.eq = B.eq.filter((_, i) => i % 2 === 0 || i > B.eq.length - 400);
       B.hist = B.hist.slice(0, 800);
-      fs.writeFileSync(path.join(dataDir, "wallet-b.json"), JSON.stringify(B));
+      writeJSON(path.join(dataDir, "wallet-b.json"), B);
       meta.walletB = Math.round(equity * 1e4) / 1e4;
     }
   }
 
-  // 6b. Keep a snapshot of every coin's inputs and verdict, so rule changes can later be replayed
-  //     against exactly what the tracker saw at the time. One compressed file per day.
+  // 6b. Keep a record of each coin's inputs and verdict, so rule changes can later be replayed against
+  //     exactly what the tracker saw. Every coin about every 10 minutes; coins near a buy, with an open
+  //     signal or held by a wallet on every run. One compressed file per hour.
   let snapAt = num(cache.lastSnap);
-  if (now - snapAt >= 9 * 60e3) try {
+  try {
+    const full = now - snapAt >= 9 * 60e3;
     const snapDir = path.join(dataDir, "snap"); fs.mkdirSync(snapDir, { recursive: true });
-    const day = new Date(now).toISOString().slice(0, 10), file = path.join(snapDir, day + ".jsonl.gz");
+    const stamp = new Date(now).toISOString(), file = path.join(snapDir, stamp.slice(0, 10) + "-" + stamp.slice(11, 13) + ".jsonl.gz");
     const r3 = v => (typeof v === "number" && isFinite(v)) ? Math.round(v * 1000) / 1000 : null;
+    const focus = new Set([...need, ...heldIds]);
     const rows = [];
     A.forEach((x, a) => {
+      if (!full && !focus.has(a)) return;
       const p = tokens.get(a).pair, ch = p.priceChange || {}, tx = p.txns || {}, v = p.volume || {};
+      const rc = rcCache[a] && rcCache[a].ok ? rcCache[a] : null, H = rc && rc.hold, f = flow[a] && !flow[a].err && now - flow[a].at < 12 * 60e3 ? flow[a] : null;
       rows.push([a, x.px, Math.round(num(x.liq)), Math.round(num(x.mc)), r3(x.ageH), r3(ch.m5), r3(ch.h1), r3(ch.h6), r3(ch.h24),
         num(tx.h1 && tx.h1.buys), num(tx.h1 && tx.h1.sells), num(tx.h6 && tx.h6.buys), num(tx.h6 && tx.h6.sells),
-        Math.round(num(v.h1)), Math.round(num(v.h6)), Math.round(num(v.h24)), x.score, x.rug, x.signal[0], x.checks.map(k => k.state[0]).join(""), x.onchain[0]]);
+        Math.round(num(v.h1)), Math.round(num(v.h6)), Math.round(num(v.h24)), x.score, x.rug, x.signal[0], x.checks.map(k => k.state[0]).join(""), x.onchain[0],
+        H ? H.total : null, H ? r3(H.top1) : null, H ? r3(H.top10) : null, H ? r3(H.devPct) : null, H ? r3(H.insPct) : null, rc ? num(rc.insWallets) : null,
+        rc && typeof rc.lpLockedPct === "number" ? r3(rc.lpLockedPct) : null, rc && rc.auth ? (rc.auth.mint ? 1 : 0) + (rc.auth.freeze ? 2 : 0) : null,
+        f ? f.ub : null, f ? f.us : null, f ? f.bu : null, f ? f.su : null, f ? f.top : null]);
     });
-    const prev = fs.existsSync(file) ? zlib.gunzipSync(fs.readFileSync(file)).toString("utf8") : "";
-    fs.writeFileSync(file, zlib.gzipSync(prev + JSON.stringify({ t: now, rows }) + "\n", { level: 9 }));
-    fs.readdirSync(snapDir).forEach(f => { const d = Date.parse(f.slice(0, 10)); if (isFinite(d) && now - d > 60 * 86400e3) fs.unlinkSync(path.join(snapDir, f)); });
-    if (!fs.existsSync(path.join(snapDir, "README.txt"))) fs.writeFileSync(path.join(snapDir, "README.txt"),
-      "One line per tracker run: {t, rows}. Each row: address, priceUsd, liquidityUsd, marketCap, pairAgeHours, change m5, h1, h6, h24 (%), buys 1h, sells 1h, buys 6h, sells 6h, volume 1h, 6h, 24h (USD), score, rugScore, verdict initial (b/h/s/r/a), the 12 checks in page order (p/f/n), on-chain status (o/p/u).\n");
-    meta.snapshot = rows.length; snapAt = now;
+    if (rows.length) {
+      const prev = fs.existsSync(file) ? zlib.gunzipSync(fs.readFileSync(file)).toString("utf8") : "";
+      const tmp = file + ".tmp"; fs.writeFileSync(tmp, zlib.gzipSync(prev + JSON.stringify({ t: now, full, rows }) + "\n", { level: 9 })); fs.renameSync(tmp, file);
+    }
+    if (full) {
+      fs.readdirSync(snapDir).forEach(f => { const d = Date.parse(f.slice(0, 10)); if (isFinite(d) && now - d > 60 * 86400e3) fs.unlinkSync(path.join(snapDir, f)); });
+      fs.writeFileSync(path.join(snapDir, "README.txt"),
+        "One file per UTC hour (older files are one per day). One line per tracker run: {t, full, rows}. full=true lines hold every scanned coin (about every 10 minutes); other lines hold only coins near a buy, with an open signal, or held by a wallet (every run).\n" +
+        "Each row: 0 address, 1 priceUsd, 2 liquidityUsd, 3 marketCap, 4 pairAgeHours, 5-8 change m5, h1, h6, h24 (%), 9 buys 1h, 10 sells 1h, 11 buys 6h, 12 sells 6h, 13-15 volume 1h, 6h, 24h (USD), 16 score, 17 rugScore, 18 verdict initial (b/h/s/r/a), 19 the 12 checks in page order (p/f/n), 20 on-chain status (o/p/u), " +
+        "21 holder count, 22 largest holder %, 23 top 10 %, 24 developer %, 25 insider %, 26 linked insider wallets, 27 pool locked %, 28 authorities (0 none, 1 mint, 2 freeze, 3 both), 29 distinct buyers 15 min, 30 distinct sellers 15 min, 31 bought USD 15 min, 32 sold USD 15 min, 33 largest wallet's share of 15 min volume. Columns 21 on are null when not looked up; rows before 11 Oct 2026 09:55 UTC stop at column 20.\n");
+      snapAt = now;
+    }
+    meta.snapshot = rows.length;
   } catch (e) { errors.push("snapshot not saved"); }
 
   // 7. Save. Keep every open signal and the most recent closed ones.
   const keep = signals.filter(r => r.st === "open").concat(signals.filter(r => r.st !== "open").slice(0, 500)).sort((p, q) => q.t - p.t);
-  fs.writeFileSync(path.join(dataDir, "signals.json"), JSON.stringify({ meta, signals: keep }));
+  writeJSON(path.join(dataDir, "signals.json"), { meta, signals: keep });
   const live = new Set(ids);
   Object.keys(peak).forEach(a => { if (!live.has(a)) delete peak[a]; });
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
-  fs.writeFileSync(path.join(dataDir, "cache.json"), JSON.stringify({ peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt }));
-  fs.writeFileSync(path.join(dataDir, "coins.json"), JSON.stringify({ t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) }));
+  Object.keys(flow).forEach(a => { if (!live.has(a) || now - flow[a].at > 3600e3) delete flow[a]; });
+  writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt, flow, gtWait });
+  writeJSON(path.join(dataDir, "coins.json"), { t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) });
   return { meta, signals: keep };
 }
 
