@@ -380,7 +380,7 @@ details.fold p{margin:10px 0 0}
   </div>
 
   <div class="view" id="v-auto" hidden>
-    <div class="phd"><div class="chips" id="awPick"><button class="btn small on" data-aw="a">Original rules</button><button class="btn small" data-aw="b">Tighter rules</button><button class="btn small" data-aw="d">Recovery</button><button class="btn small" data-aw="c">Adaptive rules</button></div><span class="muted num" id="awCmp"></span></div>
+    <div class="phd"><div class="chips" id="awPick"><button class="btn small on" data-aw="a">Original rules</button><button class="btn small" data-aw="b">Tighter rules</button><button class="btn small" data-aw="d">Recovery</button><button class="btn small" data-aw="c">Adaptive rules</button><button class="btn small" data-aw="e">Fresh launches</button></div><span class="muted num" id="awCmp"></span></div>
     <section class="panel hero">
       <div><span class="eyebrow" id="awName">Auto wallet · simulated</span><div class="big num" id="awTotal">…</div><div class="num" id="awChange"></div></div>
       <div class="kpis" id="awKpis"></div>
@@ -403,6 +403,14 @@ details.fold p{margin:10px 0 0}
       <div class="phd"><h2>Completed trades</h2><span class="muted" id="awHistNote"></span></div>
       <div class="tablebox flat" id="awHistBox" hidden><table><thead><tr><th>Coin</th><th class="l">Why it sold</th><th class="l">Bought</th><th class="l">Sold</th><th>Paid</th><th>Returned</th><th>Profit or loss</th><th>Held</th><th>Checks</th></tr></thead><tbody id="awHist"></tbody></table></div>
       <p class="empty" id="awHistEmpty">Each buy and the sale that closes it will be listed here.</p>
+    </section>
+    <section class="panel">
+      <div class="phd"><h2>Young coin outcomes</h2><span class="muted" id="lcWhen"></span></div>
+      <p style="margin:0;max-width:90ch">Every coin under 24 hours old with at least $30k of liquidity is followed for 48 hours from when the tracker first sees it, even after it drops off the lists. Each one ends up <b>pulled</b> (the pool was emptied, so nobody could sell), <b>dumped</b> (price fell 80% or more from its high), <b>gone</b> (stopped trading), or <b>survived</b> 48 hours. Grouped by the rug score at the first check.</p>
+      <div class="tablebox flat" id="lcBox" hidden><table><thead><tr><th>Rug score at first check</th><th>Coins</th><th>Pulled</th><th>Dumped</th><th>Gone</th><th>Survived 48 h</th><th>Still being followed</th><th>Typical best gain after first seen</th></tr></thead><tbody id="lcRows"></tbody></table></div>
+      <h3 class="h3">Latest young coins</h3>
+      <div class="tablebox flat" id="lcListBox" hidden><table><thead><tr><th>Coin</th><th class="l">First seen</th><th>Age then</th><th>Rug score</th><th>Best gain</th><th>Now</th><th class="l">Outcome</th></tr></thead><tbody id="lcList"></tbody></table></div>
+      <p class="empty" id="lcEmpty">The tracker starts following young coins on its next check.</p>
     </section>
     <section class="panel">
       <div class="phd"><h2>Daily rule tuning</h2><span class="muted" id="tnWhen"></span></div>
@@ -1328,13 +1336,13 @@ function renderTicket(){
 
 /* ---------- auto wallet (run by the background tracker) ---------- */
 function renderAuto(){
-  const W = {a: S.aw, b: S.awB, c: S.awC, d: S.awD}[S.awSel];
+  const W = {a: S.aw, b: S.awB, c: S.awC, d: S.awD, e: S.awE}[S.awSel];
   renderTuning();
-  const NM = {a: (S.aw && S.aw.name) || "Original rules", b: (S.awB && S.awB.name) || "Tighter rules", c: (S.awC && S.awC.name) || "Adaptive rules", d: (S.awD && S.awD.name) || "Recovery"};
+  const NM = {a: (S.aw && S.aw.name) || "Original rules", b: (S.awB && S.awB.name) || "Tighter rules", c: (S.awC && S.awC.name) || "Adaptive rules", d: (S.awD && S.awD.name) || "Recovery", e: (S.awE && S.awE.name) || "Fresh launches"};
   document.querySelectorAll("[data-aw]").forEach(b => { b.classList.toggle("on", b.dataset.aw === S.awSel); b.textContent = NM[b.dataset.aw]; });
   $("awName").textContent = "Auto wallet · " + NM[S.awSel].toLowerCase() + " · simulated";
   const line = (w, lab) => w && w.start > 0 && w.equity ? lab + " " + sol(w.equity) + " (" + pct((w.equity / w.start - 1) * 100) + ")" : lab + " not started";
-  $("awCmp").textContent = line(S.aw, NM.a) + "  ·  " + line(S.awB, NM.b) + "  ·  " + line(S.awD, NM.d) + "  ·  " + line(S.awC, NM.c);
+  $("awCmp").textContent = line(S.aw, NM.a) + "  ·  " + line(S.awB, NM.b) + "  ·  " + line(S.awD, NM.d) + "  ·  " + line(S.awC, NM.c) + "  ·  " + line(S.awE, NM.e);
   if(!W || !(W.start > 0)){
     $("awTotal").textContent = "…"; $("awChange").textContent = ""; $("awKpis").innerHTML = "";
     $("awNote").textContent = S.awSel !== "a" ? "This wallet starts on the tracker's next check. Give it a few minutes." : "Waiting for the background tracker's first update.";
@@ -1390,6 +1398,26 @@ function renderResearch(){
       '<td class="num">' + (a.n && a.hit != null ? a.hit + "%" + '<span class="short" style="display:block">' + a.up + " up first, " + a.down + " down first</span>" : "—") + "</td>" +
       '<td class="num" style="white-space:normal;min-width:150px">' + (a.tn ? '<span class="' + (a.pos >= 0.6 ? "down" : a.pos <= 0.45 ? "up" : "") + '">' + Math.round(a.pos * 100) + "% up its range</span>" + '<span class="short" style="display:block">' + a.top + "% near the top, " + a.bottom + "% near the bottom; already " + pp(a.runup) + " off its 3-hour low</span>" : '<span class="muted">—</span>') + "</td>" +
       '<td class="l" style="white-space:normal;min-width:200px"><span class="pill ' + (cls[r.tone] || "p-hold") + '">' + (r.tone === "good" ? "Promising" : r.tone === "some" ? "Slight edge" : r.tone === "bad" ? "Worse" : r.tone === "base" ? "Baseline" : r.tone === "wait" ? "Waiting" : "No edge") + '</span><span class="short" style="display:block">' + esc(r.verdict) + "</span></td></tr>"; }).join("");
+}
+function renderLaunches(){
+  const L = S.launches; if(!L) return;
+  const list = L.list || [];
+  $("lcWhen").textContent = "Following " + (L.following || 0) + " coins · updated " + when(L.t);
+  $("lcEmpty").hidden = list.length > 0; $("lcBox").hidden = $("lcListBox").hidden = !list.length;
+  const band = r => r.rug0 == null ? "Not checked" : r.rug0 < 30 ? "Under 30 (passes the filter)" : r.rug0 < 60 ? "30 to 59" : "60 or more (flagged)";
+  const order = ["Under 30 (passes the filter)", "30 to 59", "60 or more (flagged)", "Not checked", "All young coins"];
+  const groups = {}; order.forEach(k => groups[k] = []);
+  list.forEach(r => { groups[band(r)].push(r); groups["All young coins"].push(r); });
+  const med = a => { if(!a.length) return null; a = a.slice().sort((x, y) => x - y); const m = a.length; return m % 2 ? a[(m - 1) / 2] : (a[m / 2 - 1] + a[m / 2]) / 2; };
+  const share = (g, k) => { const c = g.filter(r => (r.out || null) === k).length; return '<td class="num">' + c + (g.length && c ? ' <span class="muted">(' + Math.round(c / g.length * 100) + "%)</span>" : "") + "</td>"; };
+  $("lcRows").innerHTML = order.map(k => { const g = groups[k]; if(!g.length) return "";
+    const best = med(g.map(r => (r.hi / r.px0 - 1) * 100));
+    return '<tr' + (k === "All young coins" ? ' class="cur"' : "") + "><td>" + (k === "All young coins" ? "<b>" + k + "</b>" : esc(k)) + '</td><td class="num">' + g.length + "</td>" + share(g, "pulled") + share(g, "dumped") + share(g, "gone") + share(g, "survived") + share(g, null) + '<td class="num ' + (best > 0 ? "up" : "muted") + '">' + pct(best) + "</td></tr>"; }).join("");
+  const OUT = {pulled: ['<span class="pill p-high">Pulled</span>', "Pool emptied"], dumped: ['<span class="pill p-high">Dumped</span>', "Fell 80%+ from its high"], gone: ['<span class="pill p-hold">Gone</span>', "Stopped trading"], survived: ['<span class="pill p-buy">Survived</span>', "Still trading after 48 h"]};
+  $("lcList").innerHTML = list.slice(0, 30).map(r => { const o = OUT[r.out] || ['<span class="pill p-low">Following</span>', ""];
+    return '<tr><td><a href="https://dexscreener.com/solana/' + esc(r.a) + '" target="_blank" rel="noopener noreferrer"><b>' + esc(r.sym) + "</b></a></td>" +
+      '<td class="l num muted">' + esc(when(r.t0)) + '</td><td class="num">' + (r.age0 == null ? "—" : esc(age(r.age0))) + '</td><td class="num">' + (r.rug0 == null ? '<span class="muted">—</span>' : r.rug0) + "</td>" +
+      pctCell((r.hi / r.px0 - 1) * 100) + pctCell((r.last / r.px0 - 1) * 100) + '<td class="l">' + o[0] + (o[1] ? ' <span class="short">' + o[1] + (r.outT ? ", " + esc(age((r.outT - r.t0) / 36e5)) + " after first seen" : "") + "</span>" : "") + "</td></tr>"; }).join("");
 }
 function renderTuning(){
   renderResearch();
@@ -1458,6 +1486,14 @@ async function loadBg(){
   try{
     const w = await getJSON(BG_URL.replace("signals.json", "wallet-d.json") + "?t=" + Math.floor(Date.now() / 120e3));
     if(w && w.pos && Array.isArray(w.hist)){ if(!Array.isArray(w.eq)) w.eq = []; S.awD = w; renderAuto(); renderNav(); }
+  }catch(e){}
+  try{
+    const w = await getJSON(BG_URL.replace("signals.json", "wallet-e.json") + "?t=" + Math.floor(Date.now() / 120e3));
+    if(w && w.pos && Array.isArray(w.hist)){ if(!Array.isArray(w.eq)) w.eq = []; S.awE = w; renderAuto(); renderNav(); }
+  }catch(e){}
+  try{
+    const lc = await getJSON(BG_URL.replace("signals.json", "launches.json") + "?t=" + Math.floor(Date.now() / 300e3));
+    if(lc && Array.isArray(lc.list)){ S.launches = lc; renderLaunches(); }
   }catch(e){}
   try{
     const tn = await getJSON(BG_URL.replace("signals.json", "tuning.json") + "?t=" + Math.floor(Date.now() / 600e3));
@@ -1815,7 +1851,7 @@ setInterval(() => {
 }, 1000);
 /* ---------- sections, wallet controls, start ---------- */
 const VIEWS = ["markets", "wallet", "auto", "outcomes", "method"];
-S.awSel = ["a", "b", "c", "d"].includes(load("mr.aw", "a")) ? load("mr.aw", "a") : "a";
+S.awSel = ["a", "b", "c", "d", "e"].includes(load("mr.aw", "a")) ? load("mr.aw", "a") : "a";
 S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : load("mr.view", "markets"); if(!VIEWS.includes(S.view)) S.view = "markets";
 function applyView(){
   VIEWS.forEach(v => { $("v-" + v).hidden = S.view !== v; });

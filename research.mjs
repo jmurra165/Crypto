@@ -7,7 +7,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 3;
+const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 4;
 const MIN_CASES = 30;   // per part, before a verdict is given
 
 function readJSON(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return fallback; } }
@@ -32,7 +32,7 @@ function loadSeries(snapDir, now) {
         if (prev && j.t - prev.t < 4 * MIN) continue;
         const ck = String(r[19] || ""); let fails = 0; for (let i = 0; i < 10 && i < ck.length; i++) if (ck[i] === "f") fails++;
         const b1 = r[9] || 0, s1 = r[10] || 0;
-        arr.push({ t: j.t, px: r[1], liq: r[2] || 0, mc: r[3] || 0, m5: r[5] || 0, h1: r[6] || 0, h6: r[7] || 0, h24: r[8] || 0,
+        arr.push({ t: j.t, px: r[1], liq: r[2] || 0, mc: r[3] || 0, age: r[4] == null ? null : r[4], m5: r[5] || 0, h1: r[6] || 0, h6: r[7] || 0, h24: r[8] || 0,
           bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: r[14] > 0 ? r[13] / (r[14] / 6) : null,
           score: r[16], rug: r[17], sig: r[18], fails, hold: r[21] == null ? null : r[21], ub: r[29] == null ? null : r[29], us: r[30] == null ? null : r[30], src: r.length > 34 ? String(r[34] || "") : null });
       }
@@ -69,6 +69,10 @@ const SIGNALS = [
   { id: "buyersflat", name: "More buyers than sellers, price flat", what: "As above, while the price is up less than 10% in the hour.", f: o => safe(o) && o.ub != null && o.ub >= 8 && o.ub >= (o.us || 0) * 1.5 && o.h1 < 10 },
   { id: "bigsteady", name: "Large coin with a positive score", what: "Market cap of $50M or more with a score of 20 or more.", f: o => safe(o) && o.mc >= 5e7 && o.score >= 20 },
   { id: "noholders", name: "Buy rule, holder count not surging", what: "The current buy rule, leaving out coins whose holder count grew 1% or more over the last hour.", f: (o, arr, i) => { const p = back(arr, i, 60); return safe(o) && o.score >= 35 && o.fails <= 1 && !(p && o.hold > 0 && p.hold > 0 && o.hold / p.hold - 1 >= 0.01); } },
+  { id: "young", name: "Young coin pumping", what: "Under 24 hours old, at least $50k of liquidity and up 20% or more in the last hour, whatever its rug score. A pulled pool counts as a total loss.", f: o => o.liq >= 50000 && o.age != null && o.age < 24 && o.h1 >= 20 },
+  { id: "younglo", name: "Young coin pumping, low rug score", what: "As above, with a rug score under 30. This is what the fresh-launches wallet buys.", f: o => o.liq >= 50000 && o.age != null && o.age < 24 && o.h1 >= 20 && o.rug != null && o.rug < 30 },
+  { id: "youngmid", name: "Young coin pumping, rug score 30 to 59", what: "As above, with a rug score from 30 to 59.", f: o => o.liq >= 50000 && o.age != null && o.age < 24 && o.h1 >= 20 && o.rug != null && o.rug >= 30 && o.rug < 60 },
+  { id: "younghi", name: "Young coin pumping, rug score 60+", what: "As above, with a rug score of 60 or more (flagged as a rug risk).", f: o => o.liq >= 50000 && o.age != null && o.age < 24 && o.h1 >= 20 && o.rug != null && o.rug >= 60 },
   { id: "srcboost", name: "Source: paid-promotion lists", what: "Any tradeable coin that came from DexScreener's boosted or promoted lists. Shows whether promoted coins are worse bets than the rest.", f: o => safe(o) && o.src != null && o.src.includes("b") },
   { id: "srcnot", name: "Source: not promoted", what: "Any tradeable coin that did not come from the paid-promotion lists.", f: o => safe(o) && o.src != null && !o.src.includes("b") },
   { id: "srcvol", name: "Source: top-volume list", what: "Any tradeable coin from the highest-volume pools of the last 24 hours.", f: o => safe(o) && o.src != null && o.src.includes("v") },
@@ -88,16 +92,19 @@ function timing(arr, i) {
   return { pos: (o.px - lo) / (hi - lo), runup: o.px / preLo - 1 };
 }
 function outcome(arr, i) {
-  const o = arr[i]; let r60 = null, first = 0;
+  const o = arr[i]; let r60 = null, first = 0, pulled = false;
   for (let k = i + 1; k < arr.length; k++) {
     const dt = arr[k].t - o.t, r = arr[k].px / o.px - 1;
     if (dt > 135 * MIN) break;
+    // The pool was emptied: the price shown may look fine, but nothing could have been sold. A total loss.
+    if (dt <= 80 * MIN && o.liq > 0 && arr[k].liq < Math.max(5000, o.liq * 0.2)) { pulled = true; if (!first) first = -1; break; }
     if (!first && dt <= 120 * MIN) { if (r >= 0.1) first = 1; else if (r <= -0.1) first = -1; }
     if (r60 == null && dt >= 57 * MIN && dt <= 80 * MIN) r60 = r;
   }
+  if (pulled) r60 = -1;
   if (r60 == null) return null;
   const tm = timing(arr, i);
-  return { r60: Math.max(-1, Math.min(1, r60)), first, pos: tm ? tm.pos : null, runup: tm ? tm.runup : null };
+  return { r60: Math.max(-1, Math.min(1, r60)), first, pulled, pos: tm ? tm.pos : null, runup: tm ? tm.runup : null };
 }
 function stats(cases) {
   const v = cases.map(c => c.r60).sort((a, b) => a - b), n = v.length;
@@ -107,7 +114,7 @@ function stats(cases) {
   const med = a => { a = a.slice().sort((x, y) => x - y); const m = a.length; return m % 2 ? a[(m - 1) / 2] : (a[m / 2 - 1] + a[m / 2]) / 2; };
   const tc = cases.filter(c => c.pos != null), tn = tc.length;
   const timingStats = tn ? { tn, pos: Math.round(med(tc.map(c => c.pos)) * 100) / 100, top: Math.round(tc.filter(c => c.pos >= 2 / 3).length / tn * 100), bottom: Math.round(tc.filter(c => c.pos <= 1 / 3).length / tn * 100), runup: r1(med(tc.map(c => c.runup))) } : { tn: 0 };
-  return { ...timingStats, n, med: r1(n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2), avg: r1(v.reduce((a, b) => a + b, 0) / n), beat: Math.round(v.filter(x => x > 0.03).length / n * 100), up, down, hit: up + down ? Math.round(up / (up + down) * 100) : null };
+  return { ...timingStats, pulled: cases.filter(c => c.pulled).length, n, med: r1(n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2), avg: r1(v.reduce((a, b) => a + b, 0) / n), beat: Math.round(v.filter(x => x > 0.03).length / n * 100), up, down, hit: up + down ? Math.round(up / (up + down) * 100) : null };
 }
 
 export function research({ dataDir, now = Date.now(), force = false } = {}) {

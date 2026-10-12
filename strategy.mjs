@@ -4,6 +4,7 @@
 // A wallet is stepped once per check with one observation per coin:
 //   { px, liq, score, rug, fails, oc }   price in USD, liquidity in USD, momentum score, rug score,
 //                                        number of failed safety checks (0-10), on-chain status "o" | "p" | "u"
+//   { age }                              pool age in hours (or null)
 //   { h1, m5, bp, acc }                  price change over 1 hour and 5 minutes (%), share of the last hour's
 //                                        trades that were buys (0-1 or null), last hour's volume against the
 //                                        6-hour average (or null)
@@ -29,7 +30,10 @@ export const DEFAULTS = {
   sellBelow: -30,   // sell when the momentum score falls to this or lower
   dip: 0,           // wait for this fall from the high after a coin qualifies, then buy the bounce (0 = buy straight away)
   maxHG: 1000,      // skip coins whose holder count is growing faster than this % per hour (1000 = no limit)
-  noBoost: false    // skip coins that came from DexScreener's paid-promotion lists
+  noBoost: false,   // skip coins that came from DexScreener's paid-promotion lists
+  maxAge: 0,        // only buy coins whose pool is younger than this many hours (0 = any age)
+  minH1: -1000,     // only buy coins up at least this % in the last hour (-1000 = no minimum)
+  maxHold: 0        // sell after holding this many minutes (0 = no time limit)
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -44,6 +48,12 @@ export const STEADY = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, ma
 export const ADAPTIVE_START = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 25, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 20 });
 // Trades the one lead that was ahead on day one: coins that are down over 24 hours but now being bought.
 export const RECOVERY = Object.assign({}, QUICK, { maxH24: 0 });
+// Fresh launches (13 Oct 2026): young coins that are already pumping and passed the rug check. About half of young
+// pumping coins with a low rug score did not collapse in the next six hours; this wallet tries to take a quick
+// gain from those and get out before the fade. Small size, tight stop, fixed take-profit and a time limit.
+export const FRESH = Object.assign({}, DEFAULTS, { buyLine: -29, rugMax: 30, maxFails: 10, minLiq: 50000, confirm: false, sizeHi: 2.5, sizeLo: 2.5,
+  stop: 0.1, lockAt: 0, trailAt: 0, halfAt: 0, fade: false, maxH1: 1000, maxM5: 1000, maxH24: 100000, take: 0.15, sellBelow: -1000,
+  maxAge: 24, minH1: 20, maxHold: 45 });
 export const ADAPTIVE_VERSION = 2;
 
 // The values the daily tuning may move between, one step at a time.
@@ -95,17 +105,23 @@ export const LABELS = {
   maxHG: v => (v >= 1000 ? "no limit on holder growth" : "skip coins whose holder count is growing more than " + v + "% an hour"),
   noBoost: v => (v ? "skip coins from the paid-promotion lists" : "allow coins from the paid-promotion lists"),
   take: v => (v ? "sell everything at " + pc(v) + " up" : "no fixed take-profit"),
-  sellBelow: v => "sell when the score falls to " + v + " or lower"
+  sellBelow: v => (v <= -1000 ? "ignore the score once bought" : "sell when the score falls to " + v + " or lower"),
+  maxAge: v => (v ? "only coins under " + v + " hours old" : "coins of any age"),
+  minH1: v => (v <= -1000 ? "no minimum rise in the hour" : "only coins up at least " + v + "% in the last hour"),
+  maxHold: v => (v ? "sell after " + v + " minutes" : "no time limit on holding")
 };
 
 export function describe(P) {
   const caps = [P.maxH24 < 100000 && P.maxH24 > 0 ? P.maxH24 + "% in 24 hours" : "", P.maxH1 < 1000 ? P.maxH1 + "% in the last hour" : "", P.maxM5 < 1000 ? P.maxM5 + "% in the last 5 minutes" : ""].filter(Boolean);
-  const sells = ["on a Rug risk or Avoid verdict", "when the score falls to " + P.sellBelow + " or lower", "at " + pc(P.stop) + " down"];
+  const sells = ["on a Rug risk or Avoid verdict"].concat(P.sellBelow <= -1000 ? [] : ["when the score falls to " + P.sellBelow + " or lower"], ["at " + pc(P.stop) + " down"]);
+  if (P.maxHold) sells.push("after " + P.maxHold + " minutes whatever the price");
   if (P.take) sells.push("at " + pc(P.take) + " up");
   if (P.lockAt) sells.push("at the buy price once it has been " + pc(P.lockAt) + " up");
   if (P.trailAt) sells.push("on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up");
   if (P.fade) sells.push("when the score drops below zero while in profit");
-  return "Buys when the score is " + P.buyLine + " or more, the rug score is under " + P.rugMax + ", " + (P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
+  const entry = P.minH1 > -1000 ? "Buys coins" + (P.maxAge ? " under " + P.maxAge + " hours old" : "") + " that are up at least " + P.minH1 + "% in the last hour, where the rug score"
+    : "Buys when the score is " + P.buyLine + " or more" + (P.maxAge ? ", the coin is under " + P.maxAge + " hours old" : "") + ", the rug score";
+  return entry + " is under " + P.rugMax + ", " + (P.maxFails >= 10 ? "the on-chain checks have come back" : P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
     " and liquidity is at least " + usdK(P.minLiq) + (P.confirm && !P.dip ? ", and the signal is still there on the next check" : "") + "." +
     (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
     (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
@@ -123,7 +139,7 @@ export function freshWallet(start, now, extra) {
 
 const num = x => (typeof x === "number" && isFinite(x)) ? x : 0;
 // Verdicts that force an exit, worked out from the same fields the page uses.
-const forced = (o, P) => o.rug >= 60 ? "Rug risk verdict" : (!o.liq || o.liq < 10000) ? "Liquidity fell under $10k" : o.score <= P.sellBelow ? (P.sellBelow <= -30 ? "Sell verdict" : "Score fell to " + o.score) : "";
+const forced = (o, P, p) => p && p.liq0 > 0 && !(o.liq >= p.liq0 * 0.2) ? "Pool pulled" : o.rug >= 60 ? "Rug risk verdict" : (!o.liq || o.liq < 10000) ? "Liquidity fell under $10k" : o.score <= P.sellBelow ? (P.sellBelow <= -30 ? "Sell verdict" : "Score fell to " + o.score) : "";
 // A coin cannot be bought while it is in a state that would force a sale.
 const blocked = o => o.rug >= 60 || !o.liq || o.liq < 10000 || o.score <= -30;
 
@@ -131,9 +147,10 @@ const blocked = o => o.rug >= 60 || !o.liq || o.liq < 10000 || o.score <= -30;
 export function stepWallet(W, obs, P, ctx) {
   const now = ctx.now, solPx = ctx.solPx, fee = ctx.fee;
   W.pend = W.pend || {}; W.cool = W.cool || {};
-  const sellValue = (qty, o) => { const gross = qty * o.px, imp = o.liq ? gross / (o.liq / 2 + gross) : 1; return gross * (1 - imp) * (1 - fee) / solPx; };
+  // A pool that has lost more than 80% of the liquidity it had when bought has been pulled: nothing can be sold.
+  const sellValue = (qty, o, p) => { if (p && p.liq0 > 0 && !(o.liq >= p.liq0 * 0.2)) return 0; const gross = qty * o.px, imp = o.liq ? gross / (o.liq / 2 + gross) : 1; return gross * (1 - imp) * (1 - fee) / solPx; };
   const sell = (a, frac, why) => {
-    const p = W.pos[a], o = obs.get(a), qty = p.qty * frac, costPart = p.cost * frac, out = o && o.px > 0 ? sellValue(qty, o) : 0;
+    const p = W.pos[a], o = obs.get(a), qty = p.qty * frac, costPart = p.cost * frac, out = o && o.px > 0 ? sellValue(qty, o, p) : 0;
     W.cash += out;
     W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
     p.qty -= qty; p.cost -= costPart;
@@ -146,16 +163,17 @@ export function stepWallet(W, obs, P, ctx) {
       continue;
     }
     p.miss = 0; if (o.px > num(p.hi)) p.hi = o.px;
-    let why = forced(o, P);
+    let why = forced(o, P, p);
     if (!why && P.take > 0 && o.px >= e * (1 + P.take)) why = "Took profit at " + pc(P.take) + " up";
     if (!why && o.px <= e * (1 - P.stop)) why = "Stop-loss, " + pc(P.stop) + " down";
     if (!why && P.lockAt > 0 && p.hi >= e * (1 + P.lockAt) && o.px <= e) why = "Back to the buy price after being " + pc(P.lockAt) + " up";
     if (!why && P.trailAt > 0 && p.hi >= e * (1 + P.trailAt) && o.px <= p.hi * (1 - P.trailDrop)) why = "Fell " + pc(P.trailDrop) + " from its peak";
     if (!why && P.fade && o.px >= e * 1.02 && o.score < 0) why = "Momentum faded while in profit";
+    if (!why && P.maxHold > 0 && now - p.at >= P.maxHold * 60e3) why = "Time limit, " + P.maxHold + " minutes";
     if (why) { sell(a, 1, why); continue; }
     if (P.halfAt > 0 && !p.half && o.px >= e * (1 + P.halfAt)) { sell(a, 0.5, "Took half at " + pc(P.halfAt) + " up"); p.half = true; }
   }
-  const holdings = () => { let t = 0; for (const a of Object.keys(W.pos)) { const p = W.pos[a], o = obs.get(a); if (o && o.px > 0) { p.val = sellValue(p.qty, o); p.px = o.px; p.now = ctx.verdictOf ? ctx.verdictOf(a) : undefined; } t += num(p.val); } return t; };
+  const holdings = () => { let t = 0; for (const a of Object.keys(W.pos)) { const p = W.pos[a], o = obs.get(a); if (o && o.px > 0) { p.val = sellValue(p.qty, o, p); p.px = o.px; p.now = ctx.verdictOf ? ctx.verdictOf(a) : undefined; } t += num(p.val); } return t; };
   let equity = W.cash + holdings();
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
   W.watch = W.watch || {};
@@ -163,7 +181,8 @@ export function stepWallet(W, obs, P, ctx) {
     // Only buy once the on-chain checks have actually come back ("o"); not while pending or unavailable.
     if (!(o.px > 0) || o.oc !== "o" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
-    const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24);
+    const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24)
+      && !(P.maxAge > 0 && !(o.age != null && o.age < P.maxAge)) && !(P.minH1 > -1000 && !(num(o.h1) >= P.minH1));
     if ((P.noBoost && o.src && o.src.includes("b")) || (o.hg != null && o.hg > P.maxHG)) continue;
     let viaDip = false;
     if (P.dip > 0) {
@@ -190,7 +209,7 @@ export function stepWallet(W, obs, P, ctx) {
     if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; continue; }
     const usdIn = amt * solPx, imp = usdIn / (o.liq / 2 + usdIn), fill = o.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
     const inf = ctx.info ? ctx.info(a) : { sym: a.slice(0, 4) };
-    W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
+    W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, liq0: o.liq, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
     W.cash -= amt;
     if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, early: early && !(o.score >= P.buyLine) ? 1 : undefined, dip: viaDip ? 1 : undefined });
   }

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { QUICK, STEADY, RECOVERY, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { QUICK, STEADY, RECOVERY, FRESH, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -98,7 +98,13 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const srcSets = { b: new Set(trend.slice(0, 30)), t: new Set(gtTrend), v: new Set(vol), n: new Set(fresh), w: new Set(watch) };
   const srcOf = a => Object.keys(srcSets).filter(k => srcSets[k].has(a)).join("");
   const openIds = signals.filter(r => r.st === "open").map(r => r.a);
-  const ids = [...new Set([...watch, ...openIds, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20)])].slice(0, 220);
+  // Young coins are followed for 48 hours after they are first seen, even once they drop off the lists,
+  // so we find out which ones were pulled, which dumped and which survived.
+  const follow = cache.follow || {};
+  Object.keys(follow).forEach(a => { if (now - follow[a] > 48 * 3600e3) delete follow[a]; });
+  const followIds = Object.keys(follow).sort((p, q) => follow[q] - follow[p]).slice(0, 200);
+  const heldEarly = [...new Set(["wallet.json", "wallet-b.json", "wallet-c.json", "wallet-d.json", "wallet-e.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
+  const ids = [...new Set([...watch, ...openIds, ...heldEarly, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20), ...followIds])].slice(0, 420);
 
   // 2. Prices
   const tokens = new Map(); let priceOk = false, solPx = 0, solLiq = 0;
@@ -124,7 +130,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Nothing reliable to act on. Record the failed run and leave every signal untouched.
     meta.lastGood = (state.meta && (state.meta.lastGood || state.meta.lastRun)) || 0;
     writeJSON(path.join(dataDir, "signals.json"), { meta, signals });
-    writeJSON(path.join(dataDir, "cache.json"), Object.assign({}, cache, { peak, rc: rcCache, lists, disc, run: runNo }));
+    writeJSON(path.join(dataDir, "cache.json"), Object.assign({}, cache, { peak, rc: rcCache, lists, disc, run: runNo, follow }));
     return { meta, signals };
   }
   meta.lastGood = now;
@@ -133,13 +139,19 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const histOf = a => ({ pts: [], peakLiq: num(peak[a]) });
   //    Coins with an open signal or held by a wallet always get one; after that, the 60 strongest
   //    scores with tradeable liquidity, so their holder figures are on record for later analysis.
-  const heldIds = [...new Set(["wallet.json", "wallet-b.json", "wallet-c.json", "wallet-d.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
-  const need = [], cand = [];
+  const heldIds = heldEarly;
+  const need = [], cand = [], young = [];
   tokens.forEach((t, a) => {
     const x = analyse(t, histOf(a), undefined, boosts.get(a) || 0, null, null);
+    // Start following young coins with real liquidity the first time they are seen.
+    if (x.ageH != null && x.ageH < 24 && num(x.liq) >= 30000 && !follow[a]) follow[a] = now;
+    const h1 = num(((t.pair || {}).priceChange || {}).h1);
     if (openIds.includes(a) || heldIds.includes(a)) need.push(a);
+    else if (x.ageH != null && x.ageH < 24 && num(x.liq) >= 50000 && h1 >= 10) young.push([a, h1]);
     else if (x.score >= 20 && x.liq >= 10000) cand.push([a, x.score]);
   });
+  // Young coins that are pumping get their on-chain check early, so the fresh-launch wallet can act on them.
+  young.sort((p, q) => q[1] - p[1]).slice(0, 20).forEach(k => need.push(k[0]));
   cand.sort((p, q) => q[1] - p[1]).slice(0, 60).forEach(k => need.push(k[0]));
   let rcFails = 0, rcDone = 0;
   for (const a of need) {
@@ -250,8 +262,10 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     const obs = new Map();
     A.forEach((x, a) => {
       const p = tokens.get(a).pair, ch = p.priceChange || {}, tx = (p.txns || {}).h1 || {}, v = p.volume || {}, b1 = num(tx.buys), s1 = num(tx.sells);
+      // No liquidity figure this check: a data gap, so the wallets skip the coin rather than read it as a rug.
+      if (!(p.liquidity && typeof p.liquidity.usd === "number")) return;
       obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0],
-        h1: num(ch.h1), m5: num(ch.m5), h24: num(ch.h24), src: srcOf(a), hg: hgOf(a), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
+        h1: num(ch.h1), m5: num(ch.m5), h24: num(ch.h24), age: x.ageH == null ? null : x.ageH, src: srcOf(a), hg: hgOf(a), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
     });
     const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
     const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
@@ -287,8 +301,41 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     ruleWallet("wallet.json", "Quick profit", QUICK, "resetId", "wallet");
     ruleWallet("wallet-b.json", "Established coins", STEADY, "resetIdB", "walletB");
     ruleWallet("wallet-d.json", "Recovery", RECOVERY, "resetIdD", "walletD");
+    ruleWallet("wallet-e.json", "Fresh launches", FRESH, "resetIdE", "walletE");
     ruleWallet("wallet-c.json", "Adaptive", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
   }
+
+  // 6d. Launch outcomes: every followed young coin, from first sight until it is pulled, dumps, stops
+  //     trading or reaches 48 hours. A rug score is recorded the first time one comes back.
+  try {
+    const lf = path.join(dataDir, "launches.json"), L = readJSON(lf, { list: [] }), byA = new Map((L.list || []).map(r => [r.a, r]));
+    Object.keys(follow).forEach(a => {
+      const t = tokens.get(a), x = A.get(a); let r = byA.get(a);
+      if (!r) {
+        if (!(t && x && x.px > 0)) return;
+        r = { a, sym: (t.pair.baseToken || {}).symbol || "?", name: (t.pair.baseToken || {}).name || "", t0: now, px0: x.px, liq0: Math.round(num(x.liq)), age0: x.ageH == null ? null : Math.round(x.ageH * 10) / 10,
+          h1_0: Math.round(num((t.pair.priceChange || {}).h1)), score0: x.score, rug0: null, hi: x.px, hiT: now, lo: x.px, liqMax: Math.round(num(x.liq)), last: x.px, lastT: now, liqLast: Math.round(num(x.liq)), out: null };
+        byA.set(a, r);
+      }
+      const rc = rcCache[a];
+      if (r.rug0 == null && rc && rc.ok && x) r.rug0 = x.rug;
+      // A missing liquidity figure is a data gap, not a pulled pool, so that check is skipped.
+      const liqKnown = !!(t && t.pair && t.pair.liquidity && typeof t.pair.liquidity.usd === "number");
+      if (t && x && x.px > 0) {
+        const liq = liqKnown ? Math.round(num(x.liq)) : r.liqLast;
+        if (x.px > r.hi) { r.hi = x.px; r.hiT = now; } if (x.px < r.lo) r.lo = x.px;
+        r.last = x.px; r.lastT = now; r.liqLast = liq; if (liq > r.liqMax) r.liqMax = liq; r.rugNow = x.rug;
+        if (!r.out) {
+          if (liq < Math.max(5000, r.liqMax * 0.2)) { r.out = "pulled"; r.outT = now; }
+          else if (x.px <= r.hi * 0.2) { r.out = "dumped"; r.outT = now; }
+        }
+      } else if (!r.out && now - r.lastT > 30 * 60e3) { r.out = "gone"; r.outT = now; }
+      if (!r.out && now - r.t0 >= 48 * 3600e3) { r.out = "survived"; r.outT = now; }
+    });
+    const list = [...byA.values()].filter(r => now - r.t0 < 7 * 86400e3).sort((p, q) => q.t0 - p.t0).slice(0, 1500);
+    writeJSON(lf, { t: now, following: Object.keys(follow).length, list });
+    meta.launches = list.length;
+  } catch (e) { errors.push("launch outcomes not saved"); }
 
   // 6b. Keep a record of each coin's inputs and verdict, so rule changes can later be replayed against
   //     exactly what the tracker saw. Every coin about every 10 minutes; coins near a buy, with an open
@@ -335,7 +382,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   Object.keys(rcCache).forEach(a => { if (!live.has(a) || now - rcCache[a].at > 6 * 3600e3) delete rcCache[a]; });
   Object.keys(flow).forEach(a => { if (!live.has(a) || now - flow[a].at > 3600e3) delete flow[a]; });
   Object.keys(hh).forEach(a => { if (!live.has(a)) delete hh[a]; });
-  writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt, flow, gtWait, hh });
+  writeJSON(path.join(dataDir, "cache.json"), { peak, rc: rcCache, lists, disc, run: runNo, lastSnap: snapAt, flow, gtWait, hh, follow });
   writeJSON(path.join(dataDir, "coins.json"), { t: now, trend: gtTrend, vol, fresh: fresh.slice(0, 20) });
   return { meta, signals: keep };
 }
