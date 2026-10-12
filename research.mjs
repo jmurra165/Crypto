@@ -7,7 +7,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 2;
+const DAY = 86400e3, MIN = 60e3, WINDOW_DAYS = 14, GAP = 60 * MIN, VERSION = 3;
 const MIN_CASES = 30;   // per part, before a verdict is given
 
 function readJSON(file, fallback) { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return fallback; } }
@@ -53,6 +53,8 @@ const SIGNALS = [
   { id: "score60", name: "Very strong score", what: "Score of 60 or more.", f: o => safe(o) && o.score >= 60 },
   { id: "deep", name: "Buy rule, deep pools only", what: "Score of 35 or more with at least $250k of liquidity.", f: o => safe(o) && o.score >= 35 && o.liq >= 250000 },
   { id: "downday", name: "Down on the day, now being bought", what: "Lower than 24 hours ago, with a score of 35 or more.", f: o => safe(o) && o.h24 < 0 && o.score >= 35 },
+  { id: "earlydown", name: "Early: down on the day, not yet moving", what: "Lower than 24 hours ago, score of 20 or more, and up less than 5% in the last hour. Tests buying before the run rather than during it.", f: o => safe(o) && o.h24 < 0 && o.score >= 20 && o.h1 < 5 },
+  { id: "calmbuy", name: "Buy rule before the run", what: "The current buy rule, but only while the price is up less than 5% in the hour and less than 50% on the day.", f: o => safe(o) && o.score >= 35 && o.fails <= 1 && o.h1 < 5 && o.h24 < 50 },
   { id: "downturn", name: "Down on the day, turning up", what: "Lower than 24 hours ago, score of 20 or more, and rising over the last 5 minutes.", f: o => safe(o) && o.h24 < 0 && o.score >= 20 && o.m5 > 0 },
   { id: "bounce", name: "Bounce after a sharp fall", what: "Down 15% or more over 6 hours, up 2% or more in the last 5 minutes, with at least half of trades being buys.", f: o => safe(o) && o.h6 <= -15 && o.m5 >= 2 && o.bp != null && o.bp >= 0.5 },
   { id: "pullback", name: "First pullback after a buy signal", what: "Reached a score of 35 or more within the last hour, has since dropped 8% or more from its high, and is rising again.",
@@ -76,6 +78,15 @@ const SIGNALS = [
 ];
 
 // What happened after a case: the move after one hour, and whether +10% or -10% came first within two hours.
+// Entry timing: where the price sat between the low and high of the 3 hours either side (0 = the low, 1 = the high),
+// and how far it had already risen from the low of the previous 3 hours.
+function timing(arr, i) {
+  const o = arr[i], W = 180 * MIN; let lo = o.px, hi = o.px, preLo = o.px, nPre = 0, nPost = 0, tPre = o.t, tPost = o.t;
+  for (let k = i - 1; k >= 0 && arr[k].t >= o.t - W; k--) { const p = arr[k].px; if (p < lo) lo = p; if (p > hi) hi = p; if (p < preLo) preLo = p; nPre++; tPre = arr[k].t; }
+  for (let k = i + 1; k < arr.length && arr[k].t <= o.t + W; k++) { const p = arr[k].px; if (p < lo) lo = p; if (p > hi) hi = p; nPost++; tPost = arr[k].t; }
+  if (nPre < 6 || nPost < 6 || o.t - tPre < 150 * MIN || tPost - o.t < 150 * MIN || !(hi > lo)) return null;
+  return { pos: (o.px - lo) / (hi - lo), runup: o.px / preLo - 1 };
+}
 function outcome(arr, i) {
   const o = arr[i]; let r60 = null, first = 0;
   for (let k = i + 1; k < arr.length; k++) {
@@ -85,14 +96,18 @@ function outcome(arr, i) {
     if (r60 == null && dt >= 57 * MIN && dt <= 80 * MIN) r60 = r;
   }
   if (r60 == null) return null;
-  return { r60: Math.max(-1, Math.min(1, r60)), first };
+  const tm = timing(arr, i);
+  return { r60: Math.max(-1, Math.min(1, r60)), first, pos: tm ? tm.pos : null, runup: tm ? tm.runup : null };
 }
 function stats(cases) {
   const v = cases.map(c => c.r60).sort((a, b) => a - b), n = v.length;
   if (!n) return { n: 0 };
   const r1 = x => Math.round(x * 1000) / 10;
   const up = cases.filter(c => c.first === 1).length, down = cases.filter(c => c.first === -1).length;
-  return { n, med: r1(n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2), avg: r1(v.reduce((a, b) => a + b, 0) / n), beat: Math.round(v.filter(x => x > 0.03).length / n * 100), up, down, hit: up + down ? Math.round(up / (up + down) * 100) : null };
+  const med = a => { a = a.slice().sort((x, y) => x - y); const m = a.length; return m % 2 ? a[(m - 1) / 2] : (a[m / 2 - 1] + a[m / 2]) / 2; };
+  const tc = cases.filter(c => c.pos != null), tn = tc.length;
+  const timingStats = tn ? { tn, pos: Math.round(med(tc.map(c => c.pos)) * 100) / 100, top: Math.round(tc.filter(c => c.pos >= 2 / 3).length / tn * 100), bottom: Math.round(tc.filter(c => c.pos <= 1 / 3).length / tn * 100), runup: r1(med(tc.map(c => c.runup))) } : { tn: 0 };
+  return { ...timingStats, n, med: r1(n % 2 ? v[(n - 1) / 2] : (v[n / 2 - 1] + v[n / 2]) / 2), avg: r1(v.reduce((a, b) => a + b, 0) / n), beat: Math.round(v.filter(x => x > 0.03).length / n * 100), up, down, hit: up + down ? Math.round(up / (up + down) * 100) : null };
 }
 
 export function research({ dataDir, now = Date.now(), force = false } = {}) {

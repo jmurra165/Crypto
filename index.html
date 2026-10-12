@@ -417,7 +417,8 @@ details.fold p{margin:10px 0 0}
     <section class="panel">
       <div class="phd"><h2>Signal research</h2><span class="muted" id="rsWhen"></span></div>
       <p id="rsStatus" style="margin:0;max-width:90ch">The first research run has not finished yet.</p>
-      <div class="tablebox flat" id="rsBox" hidden><table><thead><tr><th>Candidate signal</th><th>Cases</th><th>Typical move after 1 hour</th><th>Average move</th><th>Against the average coin</th><th>Reached +10% before −10%</th><th class="l">Verdict</th></tr></thead><tbody id="rsRows"></tbody></table></div>
+      <p class="short" style="margin:6px 0 0;max-width:90ch">Entry timing shows where each signal buys within the price range of the 3 hours either side: 0% is the low, 100% the high, and a random moment sits near 50%. A signal that buys late lands high in the range after the coin has already run.</p>
+      <div class="tablebox flat" id="rsBox" hidden><table><thead><tr><th>Candidate signal</th><th>Cases</th><th>Typical move after 1 hour</th><th>Average move</th><th>Against the average coin</th><th>Reached +10% before −10%</th><th>Entry timing</th><th class="l">Verdict</th></tr></thead><tbody id="rsRows"></tbody></table></div>
       <p class="muted" style="margin:0;max-width:90ch;font-size:13px">Each row is a rule that could be used to decide when to buy, tested on the tracker's own recorded data: every time the rule became true for a coin, what did the price do next? A signal is only called promising when it is ahead of the average coin, and of trading costs, in both the older and the most recent part of the data, with at least 30 cases in each. Moves are before costs, which run to about 2% to 3% per round trip.</p>
     </section>
   </div>
@@ -1387,6 +1388,7 @@ function renderResearch(){
       '<td class="num">' + (a.n || 0) + '</td><td class="num ' + (a.n ? tone(a.med) : "muted") + '">' + (a.n ? pp(a.med) : "—") + '</td><td class="num ' + (a.n ? tone(a.avg) : "muted") + '">' + (a.n ? pp(a.avg) : "—") + "</td>" +
       '<td class="num ' + (edge == null ? "muted" : tone(edge)) + '">' + (r.tone === "base" ? "—" : edge == null ? "—" : pp(edge)) + (R.split && r.edgeOlder != null && r.edgeRecent != null ? '<span class="short" style="display:block">' + pp(r.edgeOlder) + " older, " + pp(r.edgeRecent) + " recent</span>" : "") + "</td>" +
       '<td class="num">' + (a.n && a.hit != null ? a.hit + "%" + '<span class="short" style="display:block">' + a.up + " up first, " + a.down + " down first</span>" : "—") + "</td>" +
+      '<td class="num" style="white-space:normal;min-width:150px">' + (a.tn ? '<span class="' + (a.pos >= 0.6 ? "down" : a.pos <= 0.45 ? "up" : "") + '">' + Math.round(a.pos * 100) + "% up its range</span>" + '<span class="short" style="display:block">' + a.top + "% near the top, " + a.bottom + "% near the bottom; already " + pp(a.runup) + " off its 3-hour low</span>" : '<span class="muted">—</span>') + "</td>" +
       '<td class="l" style="white-space:normal;min-width:200px"><span class="pill ' + (cls[r.tone] || "p-hold") + '">' + (r.tone === "good" ? "Promising" : r.tone === "some" ? "Slight edge" : r.tone === "bad" ? "Worse" : r.tone === "base" ? "Baseline" : r.tone === "wait" ? "Waiting" : "No edge") + '</span><span class="short" style="display:block">' + esc(r.verdict) + "</span></td></tr>"; }).join("");
 }
 function renderTuning(){
