@@ -160,7 +160,8 @@ export function stepWallet(W, obs, P, ctx) {
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
   W.watch = W.watch || {};
   for (const [a, o] of obs) {
-    if (!(o.px > 0) || o.oc === "p" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
+    // Only buy once the on-chain checks have actually come back ("o"); not while pending or unavailable.
+    if (!(o.px > 0) || o.oc !== "o" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
     const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24);
     if ((P.noBoost && o.src && o.src.includes("b")) || (o.hg != null && o.hg > P.maxHG)) continue;
