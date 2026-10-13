@@ -76,6 +76,24 @@ export const ADAPTIVE_FRESH = Object.assign({}, FRESH, { maxAge: 48 });
 export const ADAPTIVE_VERSION = 3;
 export const ADAPTIVE_START = ADAPTIVE_FRESH;
 
+// Every wallet is retuned daily from the recorded data. Each keeps the settings that define it ("lock"), so the
+// five stay distinct experiments; the adaptive wallet may move any setting. TUNE_VERSION restarts all tuning.
+export const TUNE_VERSION = 4;
+const LOCK_ENTRY = ["maxAge", "minAge", "minH1", "minM5", "buyLine", "maxH1", "maxM5", "maxH24", "early", "dip", "confirm"];
+export const WALLETS = [
+  { key: "e", file: "wallet-e.json", name: "Fresh launches", base: FRESH, lock: LOCK_ENTRY, resetKey: "resetIdE", metaKey: "walletE" },
+  { key: "a", file: "wallet.json", name: "Brand-new launches", base: BRANDNEW, lock: LOCK_ENTRY, resetKey: "resetId", metaKey: "wallet" },
+  { key: "b", file: "wallet-b.json", name: "Strong pumps", base: STRONG, lock: LOCK_ENTRY, resetKey: "resetIdB", metaKey: "walletB" },
+  { key: "d", file: "wallet-d.json", name: "Day-two coins", base: DAYTWO, lock: LOCK_ENTRY, resetKey: "resetIdD", metaKey: "walletD" },
+  { key: "c", file: "wallet-c.json", name: "Adaptive launches", base: ADAPTIVE_START, lock: [], resetKey: "resetIdC", metaKey: "walletC" }
+];
+export const baseSig = P => JSON.stringify(Object.keys(P).sort().map(k => [k, P[k]]));
+// The rules a wallet is using now: its starting rules plus whatever the daily tuning has adopted since.
+export function rulesFor(w, tuning) {
+  const t = tuning && tuning.ver === TUNE_VERSION && tuning.wallets && tuning.wallets[w.key];
+  return Object.assign({}, w.base, t && t.baseSig === baseSig(w.base) && t.current ? t.current : {});
+}
+
 // The values the daily tuning may move between, one step at a time.
 export const GRID = {
   buyLine: [30, 35, 40, 50, 60],
@@ -83,7 +101,6 @@ export const GRID = {
   maxFails: [0, 1, 2],
   minLiq: [25000, 50000, 100000, 250000, 500000],
   confirm: [false, true],
-  sizeLo: [2.5, 5],
   stop: [0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25, 0.3],
   lockAt: [0, 0.1, 0.15, 0.25],
   trailAt: [0, 0.05, 0.1, 0.2, 0.3],
@@ -103,6 +120,8 @@ export const GRID = {
   minM5: [-1000, 3, 5, 8],
   maxHold: [0, 20, 30, 45, 60, 90],
   rugMemo: [0, 60, 120],
+  lossCool: [0, 180, 720],
+  mkt: [-1000, -1, 0, 1],
   sellBelow: [-30, 0, 15, 25]
 };
 

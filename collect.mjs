@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
-import { FRESH, BRANDNEW, STRONG, DAYTWO, ADAPTIVE_START, ADAPTIVE_VERSION, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { WALLETS, rulesFor, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const API = "https://api.dexscreener.com";
@@ -257,7 +257,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   if (!(solPx > 0)) errors.push("no SOL price, auto wallets not updated");
 
   // 6c. Rule-driven wallets, stepped by the shared engine in strategy.mjs.
-  //     "wallet-b" keeps the fixed tighter rules. "wallet-c" uses whatever rules the daily tuning last settled on.
+  //     Five young-coin wallets, each on its own rules as retuned daily by tune.mjs.
   {
     const obs = new Map();
     A.forEach((x, a) => {
@@ -272,7 +272,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     const hs = [...obs.values()].filter(o => o.liq >= 50000).map(o => o.h1).sort((p, q) => p - q);
     const breadth = hs.length >= 20 ? hs[Math.floor(hs.length / 2)] : null; meta.breadth = breadth;
     const tuning = readJSON(path.join(dataDir, "tuning.json"), null);
-    const adaptive = Object.assign({}, ADAPTIVE_START, tuning && tuning.ver === ADAPTIVE_VERSION && tuning.current ? tuning.current : {});
+
     const info = a => { const x = A.get(a), t = tokens.get(a); return { sym: (t && (t.pair.baseToken || {}).symbol) || "?", checks: x ? x.passN + "/" + x.checks.length : "", conf: x ? x.conf : "" }; };
     const OLD_NAMES = { "wallet.json": "Quick profit", "wallet-b.json": "Established coins", "wallet-c.json": "Adaptive", "wallet-d.json": "Recovery", "wallet-e.json": "Fresh launches" };
     const ruleWallet = (file, name, P, idKey, metaKey, extra) => {
@@ -301,11 +301,11 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       writeJSON(path.join(dataDir, file), R);
       meta[metaKey] = Math.round(equity * 1e4) / 1e4;
     };
-    ruleWallet("wallet-e.json", "Fresh launches", FRESH, "resetIdE", "walletE");
-    ruleWallet("wallet.json", "Brand-new launches", BRANDNEW, "resetId", "wallet");
-    ruleWallet("wallet-b.json", "Strong pumps", STRONG, "resetIdB", "walletB");
-    ruleWallet("wallet-d.json", "Day-two coins", DAYTWO, "resetIdD", "walletD");
-    ruleWallet("wallet-c.json", "Adaptive launches", adaptive, "resetIdC", "walletC", { tuned: tuning ? { since: tuning.since, changes: (tuning.history || []).length, ready: !!tuning.ready } : null });
+    // Each wallet runs on its starting rules plus any change the daily tuning has adopted (see tune.mjs).
+    WALLETS.forEach(w => {
+      const T = tuning && tuning.wallets && tuning.wallets[w.key];
+      ruleWallet(w.file, w.name, rulesFor(w, tuning), w.resetKey, w.metaKey, { tuned: T ? { since: T.since, changes: (T.history || []).filter(h => !h.manual).length, ready: !!T.ready } : null });
+    });
   }
 
   // 6d. Launch outcomes: every followed young coin, from first sight until it is pulled, dumps, stops

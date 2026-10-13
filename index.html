@@ -416,11 +416,11 @@ details.fold p{margin:10px 0 0}
       <div class="phd"><h2>Daily rule tuning</h2><span class="muted" id="tnWhen"></span></div>
       <p id="tnStatus" style="margin:0;max-width:90ch">The first replay has not run yet.</p>
       <div class="cols">
-        <div><h3 class="h3">Rules the adaptive wallet is using</h3><p class="muted" id="tnRules" style="margin:0"></p></div>
+        <div><h3 class="h3" id="tnRulesH">Rules this wallet is using now</h3><p class="muted" id="tnRules" style="margin:0"></p></div>
         <div><h3 class="h3">Rule changes so far</h3><ul id="tnHist" class="plain"><li class="muted">None yet.</li></ul></div>
       </div>
       <div class="tablebox flat" id="tnBox" hidden><table><thead><tr><th>Rule set replayed</th><th>Older data</th><th>Trades</th><th>In profit</th><th>Recent unseen data</th><th>Trades</th></tr></thead><tbody id="tnRows"></tbody></table></div>
-      <p class="muted" style="margin:0;max-width:90ch;font-size:13px">Each row replays the recorded snapshots as a wallet starting from 10 SOL, with costs and price impact. A change is adopted only if it beats the current rules on the older data and on the recent data it was not chosen on, with enough trades. At most one rule changes per day. The Buy, Hold and Sell verdicts in Markets are not changed by this.</p>
+      <p class="muted" style="margin:0;max-width:90ch;font-size:13px">Each row replays the recorded snapshots as a wallet starting from 10 SOL, with costs and price impact. Every wallet is retuned once a day at about 7:30pm Brisbane time, and this panel shows the wallet picked above. A change is adopted only if it beats the current rules on the older data and on the recent data it was not chosen on, with enough trades. At most one rule changes per wallet per day. Each wallet keeps the buying rules that define it (how young, how far up), so only its exits and safety settings move; the Adaptive wallet may change anything. The Buy, Hold and Sell verdicts in Markets are not changed by this.</p>
     </section>
     <section class="panel">
       <div class="phd"><h2>Signal research</h2><span class="muted" id="rsWhen"></span></div>
@@ -1423,14 +1423,19 @@ function renderLaunches(){
 function renderTuning(){
   renderResearch();
   const T = S.tuning; if(!T) return;
+  // Per-wallet tuning (from 13 Oct 2026); older files hold one adaptive wallet at the top level.
+  const W = T.wallets ? T.wallets[S.awSel] : T;
   $("tnWhen").textContent = "Last replay " + when(T.t) + (T.spanDays != null ? ", over " + T.spanDays + " day" + (T.spanDays === 1 ? "" : "s") + " of data" : "");
-  $("tnStatus").textContent = T.status || "";
-  $("tnRules").textContent = (T.currentText || "") + (T.since ? " In use since " + when(T.since) + "." : "");
-  const H = T.history || [];
-  $("tnHist").innerHTML = H.length ? H.slice(0, 8).map(h => '<li><span class="num muted">' + esc(when(h.t)) + "</span> " + esc(h.text || "") + (h.test ? ' <span class="muted">(recent unseen data: ' + pct(h.test[0]) + " before, " + pct(h.test[1]) + " after)</span>" : "") + "</li>").join("") : '<li class="muted">None yet. The first change needs ' + ((T.need || {}).days || 5) + " days of data and " + ((T.need || {}).trades || 50) + " replayed trades.</li>";
+  if(!W){ $("tnStatus").textContent = T.status || ""; $("tnRules").textContent = ""; $("tnHist").innerHTML = ""; $("tnBox").hidden = true; return; }
+  $("tnRulesH").textContent = "Rules " + (W.name || "this wallet") + " is using now";
+  $("tnStatus").textContent = (W.status || "") + (T.wallets && T.status && /changed/i.test(T.status) && !/changed/i.test(W.status || "") ? " Elsewhere: " + T.status : "");
+  $("tnRules").textContent = (W.currentText || "") + (W.since ? " In use since " + when(W.since) + "." : "");
+  const H = W.history || [];
+  $("tnHist").innerHTML = H.length ? H.slice(0, 8).map(h => '<li><span class="num muted">' + esc(when(h.t)) + "</span> " + esc(h.text || "") + (h.test ? ' <span class="muted">(recent unseen data: ' + pct(h.test[0]) + " before, " + pct(h.test[1]) + " after)</span>" : "") + "</li>").join("") : '<li class="muted">None yet. The first change needs ' + ((T.need || {}).days || 3) + " days of data and " + ((T.need || {}).trades || 30) + " replayed trades.</li>";
   const cell = (r, k) => r ? '<td class="num ' + (k === "ret" ? tone(r.ret) : "") + '">' + (k === "ret" ? pct(r.ret) : k === "wins" ? (r.n ? r.wins + " of " + r.n : "—") : r.n) + "</td>" : '<td class="num muted">—</td>';
-  $("tnBox").hidden = !T.table.length;
-  $("tnRows").innerHTML = T.table.map(r => '<tr class="' + (r.picked ? "pick" : r.kind === "current" ? "cur" : "") + '"><td>' + (r.kind === "current" ? "<b>" + esc(r.label) + "</b>" : esc(r.label)) + (r.picked ? ' <span class="tag">adopted</span>' : "") + "</td>" +
+  const rows = (W.table || []).concat(T.benchmarks || []);
+  $("tnBox").hidden = !rows.length;
+  $("tnRows").innerHTML = rows.map(r => '<tr class="' + (r.picked ? "pick" : r.kind === "current" ? "cur" : "") + '"><td>' + (r.kind === "current" ? "<b>" + esc(r.label) + "</b>" : r.kind === "benchmark" ? '<span class="muted">' + esc(r.label) + "</span>" : esc(r.label)) + (r.picked ? ' <span class="tag">adopted</span>' : "") + "</td>" +
     cell(r.train, "ret") + cell(r.train, "n") + cell(r.train, "wins") + cell(r.test, "ret") + cell(r.test, "n") + "</tr>").join("");
 }
 
@@ -1498,7 +1503,7 @@ async function loadBg(){
   }catch(e){}
   try{
     const tn = await getJSON(BG_URL.replace("signals.json", "tuning.json") + "?t=" + Math.floor(Date.now() / 600e3));
-    if(tn && Array.isArray(tn.table)){ S.tuning = tn; renderTuning(); }
+    if(tn && (tn.wallets || Array.isArray(tn.table))){ S.tuning = tn; renderTuning(); }
   }catch(e){}
   try{
     const rs = await getJSON(BG_URL.replace("signals.json", "research.json") + "?t=" + Math.floor(Date.now() / 600e3));
