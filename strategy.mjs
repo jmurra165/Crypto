@@ -38,7 +38,8 @@ export const DEFAULTS = {
   minAge: 0,        // only buy coins at least this many hours old (0 = any age)
   rugMemo: 0,       // skip coins whose rug score was 60 or more at any point in this many minutes (0 = off)
   lossCool: 0,      // after a losing sale, skip that coin for this many minutes (0 = only the usual 1-hour pause)
-  mkt: -1000        // only buy while the typical tradeable coin is up at least this % over the hour (-1000 = off)
+  mkt: -1000,       // only buy while the typical tradeable coin is up at least this % over the hour (-1000 = off)
+  ageRug: 1         // share of the rug score's age points that counts (1 = all, 0.5 = half)
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -69,7 +70,10 @@ export const FRESH = Object.assign({}, DEFAULTS, { buyLine: -29, rugMax: 30, max
 //   Strong pumps     the latest entry: only once a coin is up 60%+ in the hour.
 //   Day-two coins    the same rules on coins 1 to 3 days old, to see whether the edge lasts past the first day.
 //   Adaptive         starts on coins up to 2 days old and retunes itself daily from the recorded data.
-export const BRANDNEW = Object.assign({}, FRESH, { minH1: -1000, minM5: 5, maxAge: 6 });
+// Brand-new counts only half of the rug score's age points (25 under an hour old, 15 under a day). With all of them a
+// coin under an hour old starts at 25 and any small flag rules it out; with none, the replay bought 13 coins that were
+// pulled or delisted and lost 19.5%. Half came out best (+3.7% over 26 replayed trades against +1.3%). 13 Oct 2026.
+export const BRANDNEW = Object.assign({}, FRESH, { minH1: -1000, minM5: 5, maxAge: 6, ageRug: 0.5 });
 export const STRONG = Object.assign({}, FRESH, { minH1: 60 });
 export const DAYTWO = Object.assign({}, FRESH, { minAge: 24, maxAge: 72 });
 export const ADAPTIVE_FRESH = Object.assign({}, FRESH, { maxAge: 48 });
@@ -176,6 +180,7 @@ export function describe(P) {
     (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
     (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
     (P.noBoost ? " Skips coins that came from DexScreener's paid-promotion lists." : "") +
+    (P.ageRug != null && P.ageRug !== 1 ? (P.ageRug === 0 ? " The rug score is judged without the points it adds just for a coin being new." : " Only " + (P.ageRug === 0.5 ? "half" : Math.round(P.ageRug * 100) + "%") + " of the rug score's points for a coin being new are counted.") : "") +
     (P.rugMemo ? " Skips any coin flagged as a rug risk in the last " + (P.rugMemo >= 120 ? P.rugMemo / 60 + " hours" : P.rugMemo === 60 ? "hour" : P.rugMemo + " minutes") + "." : "") +
     (P.lossCool ? " Will not re-buy a coin for " + Math.round(P.lossCool / 60) + " hours after a loss on it." : "") +
     (P.mkt > -1000 ? " Only buys while the typical coin is up at least " + P.mkt + "% over the hour." : "") +
@@ -197,7 +202,10 @@ const forced = (o, P, p) => p && p.liq0 > 0 && !(o.liq >= p.liq0 * 0.2) ? "Pool 
 const blocked = o => o.rug >= 60 || !o.liq || o.liq < 10000 || o.score <= -30;
 
 // Advance one wallet by one check. ctx: { now, solPx, fee, info(a) -> {sym, checks, conf}, confirmMin, confirmMax, countMisses, missMax, keepHist }
+// The points the rug score adds only for a pair's age (mirrors the page's scoring in index.html).
+const agePts = h => h == null ? 0 : h < 1 ? 25 : h < 24 ? 15 : h < 72 ? 5 : 0;
 export function stepWallet(W, obs, P, ctx) {
+  if (P.ageRug != null && P.ageRug !== 1) { const k = 1 - P.ageRug, m = new Map(); for (const [a, o] of obs) m.set(a, o.rug == null ? o : Object.assign({}, o, { rug: Math.max(0, o.rug - Math.round(agePts(o.age) * k)) })); obs = m; }
   const now = ctx.now, solPx = ctx.solPx, fee = ctx.fee;
   W.pend = W.pend || {}; W.cool = W.cool || {};
   // A pool that has lost more than 80% of the liquidity it had when bought has been pulled: nothing can be sold.

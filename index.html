@@ -1344,7 +1344,7 @@ function renderAuto(){
   $("awName").textContent = "Auto wallet · " + NM[S.awSel].toLowerCase() + " · simulated";
   const DESC = {
     e: "<b>The main strategy.</b> Buys coins under a day old once they are up 20% in the hour and pass the rug check, then gets out fast: sells at 15% up, 10% down or after 45 minutes. This is the one that was in profit before the restart.",
-    a: "<b>Tests buying earlier.</b> Only coins under 6 hours old, bought on their first 5% jump in five minutes, before the big move is confirmed. Same quick exits. Tells us whether getting in earlier pays, or just catches more false starts.",
+    a: "<b>Tests buying earlier.</b> Only coins under 6 hours old, bought on their first 5% jump in five minutes, before the big move is confirmed. Same quick exits. Its rug check counts only half of the points added just for a coin being new, so very young coins aren't ruled out by age alone. Tells us whether getting in earlier pays, or just catches more false starts.",
     b: "<b>Tests buying later.</b> Only buys once a young coin is already up 60% in the hour. Fewer trades and more confirmation, but less of the move left. Tells us whether waiting for proof beats getting in early.",
     d: "<b>Tests older coins.</b> The main strategy's rules, but on coins 1 to 3 days old instead of brand new. Tells us whether the edge lasts past a coin's first day, which would widen the pool of coins we can trade.",
     c: "<b>Learns as it goes.</b> Starts with the main strategy's rules on coins up to 2 days old, then changes one setting at a time, once a day, when the recorded data shows a better version. The other wallets only fine-tune their exits; this one can change anything."
