@@ -382,7 +382,7 @@ details.fold p{margin:10px 0 0}
   <div class="view" id="v-auto" hidden>
     <div class="phd"><div class="chips" id="awPick"><button class="btn small on" data-aw="e">Fresh launches</button><button class="btn small" data-aw="a">Brand-new launches</button><button class="btn small" data-aw="b">Strong pumps</button><button class="btn small" data-aw="d">Day-two coins</button><button class="btn small" data-aw="c">Adaptive launches</button></div><span class="muted num" id="awCmp"></span></div>
     <section class="panel hero">
-      <div><span class="eyebrow" id="awName">Auto wallet · simulated</span><div class="big num" id="awTotal">…</div><div class="num" id="awChange"></div></div>
+      <div><span class="eyebrow" id="awName">Auto wallet · simulated</span><div class="big num" id="awTotal">…</div><div class="num" id="awChange"></div><p id="awDesc" style="margin:10px 0 0;max-width:62ch;font-size:14px;line-height:1.45"></p></div>
       <div class="kpis" id="awKpis"></div>
     </section>
     <p class="muted" id="awNote" style="margin:0;max-width:90ch">Waiting for the background tracker's first update.</p>
@@ -1342,6 +1342,14 @@ function renderAuto(){
   const NM = {a: (S.aw && S.aw.name) || "Brand-new launches", b: (S.awB && S.awB.name) || "Strong pumps", c: (S.awC && S.awC.name) || "Adaptive launches", d: (S.awD && S.awD.name) || "Day-two coins", e: (S.awE && S.awE.name) || "Fresh launches"};
   document.querySelectorAll("[data-aw]").forEach(b => { b.classList.toggle("on", b.dataset.aw === S.awSel); b.textContent = NM[b.dataset.aw]; });
   $("awName").textContent = "Auto wallet · " + NM[S.awSel].toLowerCase() + " · simulated";
+  const DESC = {
+    e: "<b>The main strategy.</b> Buys coins under a day old once they are up 20% in the hour and pass the rug check, then gets out fast: sells at 15% up, 10% down or after 45 minutes. This is the one that was in profit before the restart.",
+    a: "<b>Tests buying earlier.</b> Only coins under 6 hours old, bought on their first 5% jump in five minutes, before the big move is confirmed. Same quick exits. Tells us whether getting in earlier pays, or just catches more false starts.",
+    b: "<b>Tests buying later.</b> Only buys once a young coin is already up 60% in the hour. Fewer trades and more confirmation, but less of the move left. Tells us whether waiting for proof beats getting in early.",
+    d: "<b>Tests older coins.</b> The main strategy's rules, but on coins 1 to 3 days old instead of brand new. Tells us whether the edge lasts past a coin's first day, which would widen the pool of coins we can trade.",
+    c: "<b>Learns as it goes.</b> Starts with the main strategy's rules on coins up to 2 days old, then changes one setting at a time, once a day, when the recorded data shows a better version. The other wallets only fine-tune their exits; this one can change anything."
+  };
+  $("awDesc").innerHTML = DESC[S.awSel] || "";
   const line = (w, lab) => w && w.start > 0 && w.equity ? lab + " " + sol(w.equity) + " (" + pct((w.equity / w.start - 1) * 100) + ")" : lab + " not started";
   $("awCmp").textContent = line(S.awE, NM.e) + "  ·  " + line(S.aw, NM.a) + "  ·  " + line(S.awB, NM.b) + "  ·  " + line(S.awD, NM.d) + "  ·  " + line(S.awC, NM.c);
   if(!W || !(W.start > 0)){
