@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { DEFAULTS, QUICK, STEADY, RECOVERY, FRESH, ADAPTIVE_START, ADAPTIVE_VERSION, GRID, LABELS, describe, freshWallet, stepWallet } from "./strategy.mjs";
+import { DEFAULTS, QUICK, STEADY, RECOVERY, FRESH, BRANDNEW, STRONG, DAYTWO, ADAPTIVE_START, ADAPTIVE_VERSION, GRID, LABELS, describe, freshWallet, stepWallet } from "./strategy.mjs";
 
 const DAY = 86400e3;
 const MIN_DAYS = 5, MIN_TRADES = 50, MIN_TEST_TRADES = 10, MIN_TRAIN_TRADES = 20, MARGIN = 0.5, WINDOW_DAYS = 14;
@@ -36,6 +36,9 @@ export function loadLines(snapDir, now) {
     }
   }
   lines.sort((a, b) => a.t - b.t);
+  // Market direction: the typical (median) one-hour move of tradeable coins, from each full snapshot, carried forward.
+  let br = null;
+  for (const ln of lines) { if (ln.full) { const v = [...ln.obs.values()].filter(o => o.liq >= 50000).map(o => o.h1).sort((x, y) => x - y); if (v.length >= 20) br = v[Math.floor(v.length / 2)]; } ln.breadth = br; }
   // Holder growth per hour, from each coin's own earlier holder counts (about an hour back).
   const hs = new Map();
   for (const ln of lines) for (const [a, o] of ln.obs) {
@@ -55,7 +58,7 @@ export function simulate(lines, P) {
   const W = freshWallet(10, lines.length ? lines[0].t : 0);
   let peak = 10, maxDD = 0;
   for (const ln of lines) {
-    const eq = stepWallet(W, ln.obs, P, { now: ln.t, solPx: 100, fee: 0.01, confirmMin: 60e3, confirmMax: 12 * 60e3, countMisses: ln.full, missMax: 6, keepHist: false });
+    const eq = stepWallet(W, ln.obs, P, { now: ln.t, breadth: ln.breadth, solPx: 100, fee: 0.01, confirmMin: 60e3, confirmMax: 12 * 60e3, countMisses: ln.full, missMax: 6, keepHist: false });
     if (eq > peak) peak = eq; if (peak > 0 && (peak - eq) / peak > maxDD) maxDD = (peak - eq) / peak;
   }
   const sells = W.hist, wins = sells.filter(h => h.pnl > 0).length;
@@ -83,7 +86,7 @@ export function tune({ dataDir, now = Date.now(), force = false } = {}) {
   const carried = !!prev && prev.ver === ADAPTIVE_VERSION;
   const current = Object.assign({}, ADAPTIVE_START, carried && prev.current ? prev.current : {});
   const history = prev && Array.isArray(prev.history) ? prev.history.slice() : [];
-  if (prev && !carried) history.unshift({ t: now, manual: true, text: "Starting rules replaced by hand after reviewing the first day of results" });
+  if (prev && !carried) history.unshift({ t: now, manual: true, text: "Starting rules replaced by hand after a review: now tunes the young-coin rules" });
   const out = { t: now, lines: lines.length, spanDays: 0, current, since: carried && prev.since ? prev.since : now, ver: ADAPTIVE_VERSION, history, table: [], grid: gridSig, ready: false, need: { days: MIN_DAYS, trades: MIN_TRADES } };
   if (lines.length < 2) { out.status = "No recorded data to replay yet."; out.currentText = describe(current); fs.writeFileSync(file, JSON.stringify(out)); return out; }
   const first = lines[0].t, last = lines[lines.length - 1].t, span = last - first;
@@ -96,7 +99,7 @@ export function tune({ dataDir, now = Date.now(), force = false } = {}) {
   out.table.push({ label: "Current rules", kind: "current", train: cur.train, test: cur.test });
   const cands = neighbours(current).map(c => Object.assign(c, evalP(c.P)));
   cands.forEach(c => out.table.push({ label: "Change: " + c.label, kind: "variation", key: c.key, val: c.val, train: c.train, test: c.test }));
-  [["Quick-profit wallet's rules", QUICK], ["Established-coins wallet's rules", STEADY], ["Recovery wallet's rules", RECOVERY], ["Fresh-launches wallet's rules", FRESH], ["Day-one tighter rules", DEFAULTS], ["Day-one original rules", ORIGINAL]]
+  [["Fresh launches", FRESH], ["Brand-new launches", BRANDNEW], ["Strong pumps", STRONG], ["Day-two coins", DAYTWO], ["Retired: Quick profit", QUICK], ["Retired: Established coins", STEADY], ["Retired: Recovery", RECOVERY], ["Day-one tighter rules", DEFAULTS], ["Day-one original rules", ORIGINAL]]
     .forEach(([label, P]) => { const e = evalP(P); out.table.push({ label, kind: "benchmark", train: e.train, test: e.test }); });
 
   const total = cur.train.n + (cur.test ? cur.test.n : 0);

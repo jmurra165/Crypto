@@ -380,7 +380,7 @@ details.fold p{margin:10px 0 0}
   </div>
 
   <div class="view" id="v-auto" hidden>
-    <div class="phd"><div class="chips" id="awPick"><button class="btn small on" data-aw="a">Original rules</button><button class="btn small" data-aw="b">Tighter rules</button><button class="btn small" data-aw="d">Recovery</button><button class="btn small" data-aw="c">Adaptive rules</button><button class="btn small" data-aw="e">Fresh launches</button></div><span class="muted num" id="awCmp"></span></div>
+    <div class="phd"><div class="chips" id="awPick"><button class="btn small on" data-aw="e">Fresh launches</button><button class="btn small" data-aw="a">Brand-new launches</button><button class="btn small" data-aw="b">Strong pumps</button><button class="btn small" data-aw="d">Day-two coins</button><button class="btn small" data-aw="c">Adaptive launches</button></div><span class="muted num" id="awCmp"></span></div>
     <section class="panel hero">
       <div><span class="eyebrow" id="awName">Auto wallet · simulated</span><div class="big num" id="awTotal">…</div><div class="num" id="awChange"></div></div>
       <div class="kpis" id="awKpis"></div>
@@ -464,6 +464,7 @@ details.fold p{margin:10px 0 0}
     <p><b>Coverage</b> is about 150 to 200 Solana coins at a time, not every coin on the chain: your watchlist, DexScreener's boosted and recently updated tokens, GeckoTerminal's trending pools, the highest-volume pools of the last 24 hours, and the newest pairs. Stablecoins, SOL and staking tokens are left out. On-chain checks are loaded for coins near a buy, coins you hold or watch, and any coin you open; the rest show them as not checked.</p>
     <p><b>Background tracker</b> is a scheduled job in the GitHub repository that runs the same scoring about every 90 seconds, day and night, and saves every buy signal and its exit. It follows the trending scan, new pairs and the coins in the repository's watchlist file, which is separate from the watchlist in this browser. It has no chart data, so its checklists show the chart check as not checked.</p>
     <p><b>Auto wallets</b> are four simulated wallets run by the background tracker, so they trade whether or not this page is open. Each starts with 10 SOL and follows its own fixed rule set, which is written out in full at the top of its tab. Fills include estimated price impact and 1% costs each way, and a coin that can no longer be priced is written off as a total loss. They check about every 90 seconds, so they react later than a person watching live would.</p>
+    <p><b>New wallets, 13 October 2026.</b> After two days, the four wallets that bought on the momentum score were all losing, and replays of 84 rule combinations on established coins found none that made money in both halves of the data, even at a quarter of the trading costs. The one wallet in profit traded young coins: under 24 hours old, already up 20% or more in the hour, rug score under 30, sold at 15% up, 10% down or after 45 minutes. So all five wallets were restarted from 10 SOL to test that idea from different angles. "Fresh launches" keeps those rules and now skips any coin flagged as a rug risk in the last hour. "Brand-new launches" buys earlier, on the first 5% jump in five minutes, but only coins under 6 hours old. "Strong pumps" buys later, only once a coin is up 60% in the hour. "Day-two coins" uses the same rules on coins 1 to 3 days old. "Adaptive launches" starts on coins up to 2 days old and is retuned daily. Every buy is 2.5% of the wallet. The tracker now checks about every 45 seconds. The earlier wallets are kept on file.</p>
     <p><b>Rule review, 12 October 2026.</b> After the first day all three wallets were losing, and the recorded data showed where: coins bought after they had already risen a long way, thinly traded coins, and losers held down to a 25% stop. The wallets were restarted from 10 SOL on new rules. All three now skip coins already up more than 50% in 24 hours, stop out at 12% down, and sell when the momentum score fades instead of waiting for a Sell verdict. "Quick profit" sells everything at 8% up. "Established coins" only buys pools with at least $250k of liquidity that have not moved more than 15% in the hour, and lets winners run on a 10% trailing stop. "Adaptive" starts close to that and is adjusted by the daily tuning. A fourth wallet, "Recovery", was added the same day to test the one signal that was ahead in the first day's data: it follows the Quick profit rules but only buys coins that are lower than 24 hours ago. Replayed over that first day these rules lost about 1% where the old ones lost 3% to 24%, but that is the same data they were chosen on, so it flatters them.</p>
     <p><b>Adaptive wallet and daily tuning.</b> Once a day the tracker replays up to 14 days of its recorded snapshots through the adaptive wallet's current rules and through every one-step variation of them: a different buy line, liquidity floor, stop-loss, trailing stop and so on. A variation is adopted only when it beats the current rules on the older part of the data and also on the most recent part, which it was not chosen on, by at least half a percentage point and with enough trades. Nothing changes until there are 5 days of data and 50 replayed trades, and at most one rule changes per day. The original and tighter wallets never change, so they act as benchmarks. Tuning adjusts thresholds only; it cannot invent new signals, and rules that fit past data can still fail on new data.</p>
     <p><b>Signal research</b> runs once a day in the background tracker. It takes a list of candidate buy rules, such as "down on the day and now being bought", "holder count growing" or "more distinct buyers than sellers", finds every time each one became true in the recorded snapshots, and measures what the price did over the next one to two hours. Results are split into an older and a recent period, and a signal has to be ahead in both to be called promising. It is a way of finding leads to test in a wallet. It does not change any rules by itself.</p>
@@ -1338,11 +1339,11 @@ function renderTicket(){
 function renderAuto(){
   const W = {a: S.aw, b: S.awB, c: S.awC, d: S.awD, e: S.awE}[S.awSel];
   renderTuning();
-  const NM = {a: (S.aw && S.aw.name) || "Original rules", b: (S.awB && S.awB.name) || "Tighter rules", c: (S.awC && S.awC.name) || "Adaptive rules", d: (S.awD && S.awD.name) || "Recovery", e: (S.awE && S.awE.name) || "Fresh launches"};
+  const NM = {a: (S.aw && S.aw.name) || "Brand-new launches", b: (S.awB && S.awB.name) || "Strong pumps", c: (S.awC && S.awC.name) || "Adaptive launches", d: (S.awD && S.awD.name) || "Day-two coins", e: (S.awE && S.awE.name) || "Fresh launches"};
   document.querySelectorAll("[data-aw]").forEach(b => { b.classList.toggle("on", b.dataset.aw === S.awSel); b.textContent = NM[b.dataset.aw]; });
   $("awName").textContent = "Auto wallet · " + NM[S.awSel].toLowerCase() + " · simulated";
   const line = (w, lab) => w && w.start > 0 && w.equity ? lab + " " + sol(w.equity) + " (" + pct((w.equity / w.start - 1) * 100) + ")" : lab + " not started";
-  $("awCmp").textContent = line(S.aw, NM.a) + "  ·  " + line(S.awB, NM.b) + "  ·  " + line(S.awD, NM.d) + "  ·  " + line(S.awC, NM.c) + "  ·  " + line(S.awE, NM.e);
+  $("awCmp").textContent = line(S.awE, NM.e) + "  ·  " + line(S.aw, NM.a) + "  ·  " + line(S.awB, NM.b) + "  ·  " + line(S.awD, NM.d) + "  ·  " + line(S.awC, NM.c);
   if(!W || !(W.start > 0)){
     $("awTotal").textContent = "…"; $("awChange").textContent = ""; $("awKpis").innerHTML = "";
     $("awNote").textContent = S.awSel !== "a" ? "This wallet starts on the tracker's next check. Give it a few minutes." : "Waiting for the background tracker's first update.";
@@ -1851,7 +1852,7 @@ setInterval(() => {
 }, 1000);
 /* ---------- sections, wallet controls, start ---------- */
 const VIEWS = ["markets", "wallet", "auto", "outcomes", "method"];
-S.awSel = ["a", "b", "c", "d", "e"].includes(load("mr.aw", "a")) ? load("mr.aw", "a") : "a";
+S.awSel = ["a", "b", "c", "d", "e"].includes(load("mr.aw2", "e")) ? load("mr.aw2", "e") : "e";
 S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : load("mr.view", "markets"); if(!VIEWS.includes(S.view)) S.view = "markets";
 function applyView(){
   VIEWS.forEach(v => { $("v-" + v).hidden = S.view !== v; });
@@ -1880,7 +1881,7 @@ function openCoin(a){
 document.addEventListener("click", e => {
   const v = e.target.closest("[data-view]"); if(v){ S.view = v.dataset.view; applyView(); window.scrollTo({top: 0}); return; }
   const o = e.target.closest("[data-open]"); if(o){ openCoin(o.dataset.open); return; }
-  const awb = e.target.closest("[data-aw]"); if(awb){ S.awSel = awb.dataset.aw; save("mr.aw", S.awSel); renderAuto(); return; }
+  const awb = e.target.closest("[data-aw]"); if(awb){ S.awSel = awb.dataset.aw; save("mr.aw2", S.awSel); renderAuto(); return; }
   const sr = e.target.closest("[data-src]"); if(sr){ S.recSrc = sr.dataset.src; save("mr.src", S.recSrc); renderRec(); renderNav(); return; }
   const sf = e.target.closest("[data-sf]"); if(sf){ S.sf = sf.dataset.sf; document.querySelectorAll("[data-sf]").forEach(b => b.classList.toggle("on", b === sf)); renderRec(); return; }
   const pc = e.target.closest("[data-pc]"); if(pc){ S.demoAmt = String(Math.floor(S.demo.cash * Number(pc.dataset.pc) * 1e4) / 1e4); save("mr.damt", S.demoAmt); document.querySelectorAll("[data-damt]").forEach(i => { i.value = S.demoAmt; }); renderTicket(); return; }

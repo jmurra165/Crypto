@@ -1,9 +1,1 @@
-{
-  "wallet": {
-    "startSol": 10,
-    "feePct": 1,
-    "resetId": 1,
-    "resetIdB": 1,
-    "resetIdC": 1
-  }
-}
+{"wallet": {"startSol": 10, "feePct": 1, "resetId": 2, "resetIdB": 2, "resetIdC": 2, "resetIdD": 1, "resetIdE": 1}}

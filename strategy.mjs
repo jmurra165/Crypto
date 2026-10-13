@@ -33,7 +33,12 @@ export const DEFAULTS = {
   noBoost: false,   // skip coins that came from DexScreener's paid-promotion lists
   maxAge: 0,        // only buy coins whose pool is younger than this many hours (0 = any age)
   minH1: -1000,     // only buy coins up at least this % in the last hour (-1000 = no minimum)
-  maxHold: 0        // sell after holding this many minutes (0 = no time limit)
+  maxHold: 0,       // sell after holding this many minutes (0 = no time limit)
+  minM5: -1000,     // only buy coins up at least this % in the last 5 minutes (-1000 = no minimum)
+  minAge: 0,        // only buy coins at least this many hours old (0 = any age)
+  rugMemo: 0,       // skip coins whose rug score was 60 or more at any point in this many minutes (0 = off)
+  lossCool: 0,      // after a losing sale, skip that coin for this many minutes (0 = only the usual 1-hour pause)
+  mkt: -1000        // only buy while the typical tradeable coin is up at least this % over the hour (-1000 = off)
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -44,8 +49,8 @@ const REVIEWED = { maxH24: 50, stop: 0.12, lockAt: 0, halfAt: 0, fade: false };
 export const QUICK = Object.assign({}, DEFAULTS, REVIEWED, { maxH1: 25, maxM5: 10, sizeLo: 5, take: 0.08, trailAt: 0, sellBelow: 15 });
 // Only deep, established pools that have not already moved; lets winners run on a 10% trailing stop.
 export const STEADY = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 15, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 15 });
-// Where the adaptive wallet starts; the daily tuning moves it from here.
-export const ADAPTIVE_START = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 25, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 20 });
+// Where the adaptive wallet started from 12 Oct (kept for the replay comparison).
+export const ADAPTIVE_OLD = Object.assign({}, DEFAULTS, REVIEWED, { minLiq: 250000, maxH1: 25, maxM5: 10, trailAt: 0.1, trailDrop: 0.1, sellBelow: 20 });
 // Trades the one lead that was ahead on day one: coins that are down over 24 hours but now being bought.
 export const RECOVERY = Object.assign({}, QUICK, { maxH24: 0 });
 // Fresh launches (13 Oct 2026): young coins that are already pumping and passed the rug check. About half of young
@@ -53,8 +58,23 @@ export const RECOVERY = Object.assign({}, QUICK, { maxH24: 0 });
 // gain from those and get out before the fade. Small size, tight stop, fixed take-profit and a time limit.
 export const FRESH = Object.assign({}, DEFAULTS, { buyLine: -29, rugMax: 30, maxFails: 10, minLiq: 50000, confirm: false, sizeHi: 2.5, sizeLo: 2.5,
   stop: 0.1, lockAt: 0, trailAt: 0, halfAt: 0, fade: false, maxH1: 1000, maxM5: 1000, maxH24: 100000, take: 0.15, sellBelow: -1000,
-  maxAge: 24, minH1: 20, maxHold: 45 });
-export const ADAPTIVE_VERSION = 2;
+  maxAge: 24, minH1: 20, maxHold: 45, rugMemo: 60 });
+
+// The five wallets from 13 Oct 2026 evening. The first two days showed that buying established coins on our
+// momentum score lost money under every rule tried, while quick in-and-out trades on young coins that passed the
+// rug check came out ahead. So all five now test that one idea from different angles:
+//   Fresh launches   the main version (under 24 h old, up 20%+ in the hour), now skipping coins flagged as a rug
+//                    risk in the last hour, which removes the "flagged a minute after buying" losses.
+//   Brand-new        the earliest entry: under 6 hours old, bought on the first 5-minute jump of 5%+.
+//   Strong pumps     the latest entry: only once a coin is up 60%+ in the hour.
+//   Day-two coins    the same rules on coins 1 to 3 days old, to see whether the edge lasts past the first day.
+//   Adaptive         starts on coins up to 2 days old and retunes itself daily from the recorded data.
+export const BRANDNEW = Object.assign({}, FRESH, { minH1: -1000, minM5: 5, maxAge: 6 });
+export const STRONG = Object.assign({}, FRESH, { minH1: 60 });
+export const DAYTWO = Object.assign({}, FRESH, { minAge: 24, maxAge: 72 });
+export const ADAPTIVE_FRESH = Object.assign({}, FRESH, { maxAge: 48 });
+export const ADAPTIVE_VERSION = 3;
+export const ADAPTIVE_START = ADAPTIVE_FRESH;
 
 // The values the daily tuning may move between, one step at a time.
 export const GRID = {
@@ -64,7 +84,7 @@ export const GRID = {
   minLiq: [25000, 50000, 100000, 250000, 500000],
   confirm: [false, true],
   sizeLo: [2.5, 5],
-  stop: [0.08, 0.12, 0.15, 0.2, 0.25, 0.3],
+  stop: [0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25, 0.3],
   lockAt: [0, 0.1, 0.15, 0.25],
   trailAt: [0, 0.05, 0.1, 0.2, 0.3],
   trailDrop: [0.08, 0.1, 0.15, 0.2, 0.3],
@@ -77,7 +97,12 @@ export const GRID = {
   dip: [0, 0.05, 0.08, 0.12],
   maxHG: [0.5, 1, 2, 1000],
   noBoost: [false, true],
-  take: [0, 0.05, 0.08, 0.12, 0.2],
+  take: [0, 0.05, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25],
+  maxAge: [6, 12, 24, 48, 72],
+  minH1: [-1000, 10, 20, 30, 40, 60],
+  minM5: [-1000, 3, 5, 8],
+  maxHold: [0, 20, 30, 45, 60, 90],
+  rugMemo: [0, 60, 120],
   sellBelow: [-30, 0, 15, 25]
 };
 
@@ -108,7 +133,11 @@ export const LABELS = {
   sellBelow: v => (v <= -1000 ? "ignore the score once bought" : "sell when the score falls to " + v + " or lower"),
   maxAge: v => (v ? "only coins under " + v + " hours old" : "coins of any age"),
   minH1: v => (v <= -1000 ? "no minimum rise in the hour" : "only coins up at least " + v + "% in the last hour"),
-  maxHold: v => (v ? "sell after " + v + " minutes" : "no time limit on holding")
+  maxHold: v => (v ? "sell after " + v + " minutes" : "no time limit on holding"),
+  minM5: v => (v <= -1000 ? "no minimum 5-minute move" : "only coins up at least " + v + "% in the last 5 minutes"),
+  rugMemo: v => (v ? "skip coins flagged as a rug risk in the last " + v + " minutes" : "no memory of earlier rug flags"),
+  lossCool: v => (v ? "no re-buying a coin for " + Math.round(v / 60) + " hours after a loss on it" : "re-buying allowed an hour after a loss"),
+  mkt: v => (v <= -1000 ? "trades whatever the market is doing" : "only buys while the typical coin is up at least " + v + "% over the hour")
 };
 
 export function describe(P) {
@@ -119,13 +148,18 @@ export function describe(P) {
   if (P.lockAt) sells.push("at the buy price once it has been " + pc(P.lockAt) + " up");
   if (P.trailAt) sells.push("on a " + pc(P.trailDrop) + " fall from the peak once it has been " + pc(P.trailAt) + " up");
   if (P.fade) sells.push("when the score drops below zero while in profit");
-  const entry = P.minH1 > -1000 ? "Buys coins" + (P.maxAge ? " under " + P.maxAge + " hours old" : "") + " that are up at least " + P.minH1 + "% in the last hour, where the rug score"
-    : "Buys when the score is " + P.buyLine + " or more" + (P.maxAge ? ", the coin is under " + P.maxAge + " hours old" : "") + ", the rug score";
+  const ageTxt = P.minAge > 0 && P.maxAge > 0 ? " " + P.minAge + " to " + P.maxAge + " hours old" : P.maxAge > 0 ? " under " + P.maxAge + " hours old" : P.minAge > 0 ? " at least " + P.minAge + " hours old" : "";
+  const moves = [P.minH1 > -1000 ? "up at least " + P.minH1 + "% in the last hour" : "", P.minM5 > -1000 ? "up at least " + P.minM5 + "% in the last 5 minutes" : ""].filter(Boolean).join(" and ");
+  const entry = (P.buyLine <= -29 ? "Buys coins" + ageTxt + (moves ? " that are " + moves : "")
+    : "Buys when the score is " + P.buyLine + " or more" + (ageTxt ? ", the coin is" + ageTxt : "") + (moves ? ", it is " + moves : "")) + ", where the rug score";
   return entry + " is under " + P.rugMax + ", " + (P.maxFails >= 10 ? "the on-chain checks have come back" : P.maxFails === 0 ? "no safety check has failed" : "no more than " + P.maxFails + " safety check" + (P.maxFails === 1 ? " has" : "s have") + " failed") +
     " and liquidity is at least " + usdK(P.minLiq) + (P.confirm && !P.dip ? ", and the signal is still there on the next check" : "") + "." +
     (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
     (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
     (P.noBoost ? " Skips coins that came from DexScreener's paid-promotion lists." : "") +
+    (P.rugMemo ? " Skips any coin flagged as a rug risk in the last " + (P.rugMemo >= 120 ? P.rugMemo / 60 + " hours" : P.rugMemo === 60 ? "hour" : P.rugMemo + " minutes") + "." : "") +
+    (P.lossCool ? " Will not re-buy a coin for " + Math.round(P.lossCool / 60) + " hours after a loss on it." : "") +
+    (P.mkt > -1000 ? " Only buys while the typical coin is up at least " + P.mkt + "% over the hour." : "") +
     (P.maxHG < 1000 ? " Skips coins whose holder count is growing more than " + P.maxHG + "% an hour." : "") +
     (caps.length ? " Skips coins already up more than " + caps.join(", or ") + "." : "") +
     (P.early ? " Also buys early, at the smaller size, when at least 60% of the hour's trades are buys, volume is running at 1.5 times its 6-hour average and the price is up less than 10% in the hour." : "") +
@@ -154,7 +188,7 @@ export function stepWallet(W, obs, P, ctx) {
     W.cash += out;
     W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
     p.qty -= qty; p.cost -= costPart;
-    if (frac >= 1) { delete W.pos[a]; W.cool[a] = now; }
+    if (frac >= 1) { delete W.pos[a]; W.cool[a] = now; if (out - costPart < 0 && P.lossCool > 0) { W.lcool = W.lcool || {}; W.lcool[a] = now; } }
   };
   for (const a of Object.keys(W.pos)) {
     const p = W.pos[a], o = obs.get(a), e = p.px0;
@@ -177,12 +211,18 @@ export function stepWallet(W, obs, P, ctx) {
   let equity = W.cash + holdings();
   const live = new Set(), cMin = ctx.confirmMin == null ? 60e3 : ctx.confirmMin, cMax = ctx.confirmMax || 6 * 60e3;
   W.watch = W.watch || {};
+  if (P.rugMemo > 0) { W.flag = W.flag || {}; for (const [a, o] of obs) if (o.rug >= 60) W.flag[a] = now; for (const a of Object.keys(W.flag)) if (now - W.flag[a] > P.rugMemo * 60e3) delete W.flag[a]; }
+  if (P.lossCool > 0) { W.lcool = W.lcool || {}; for (const a of Object.keys(W.lcool)) if (now - W.lcool[a] > P.lossCool * 60e3) delete W.lcool[a]; }
+  const mktOk = !(P.mkt > -1000) || (ctx.breadth != null && ctx.breadth >= P.mkt);
   for (const [a, o] of obs) {
+    if (!mktOk) break;
+    if ((P.rugMemo > 0 && W.flag[a]) || (P.lossCool > 0 && W.lcool[a])) continue;
     // Only buy once the on-chain checks have actually come back ("o"); not while pending or unavailable.
     if (!(o.px > 0) || o.oc !== "o" || blocked(o) || !(o.rug < P.rugMax) || !(o.fails <= P.maxFails)) continue;
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
     const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24)
-      && !(P.maxAge > 0 && !(o.age != null && o.age < P.maxAge)) && !(P.minH1 > -1000 && !(num(o.h1) >= P.minH1));
+      && !(P.maxAge > 0 && !(o.age != null && o.age < P.maxAge)) && !(P.minH1 > -1000 && !(num(o.h1) >= P.minH1))
+      && !(P.minM5 > -1000 && !(num(o.m5) >= P.minM5)) && !(P.minAge > 0 && !(o.age != null && o.age >= P.minAge));
     if ((P.noBoost && o.src && o.src.includes("b")) || (o.hg != null && o.hg > P.maxHG)) continue;
     let viaDip = false;
     if (P.dip > 0) {

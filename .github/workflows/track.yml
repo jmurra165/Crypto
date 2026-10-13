@@ -1,7 +1,7 @@
 name: Track signals
 
 # GitHub's own scheduler proved unreliable for this repository, so each run keeps tracking for
-# about 50 minutes, scoring every 90 seconds, then starts the next run itself. The hourly
+# about 50 minutes, scoring about every 45 seconds, then starts the next run itself. The hourly
 # schedule is only a safety net that restarts the chain if it ever stops.
 on:
   schedule:
@@ -48,7 +48,7 @@ jobs:
             fi
             now=$(date +%s)
             if [ "$now" -ge "$end" ]; then break; fi
-            wait=$(( 90 - (now - start) ))
+            wait=$(( 45 - (now - start) ))
             if [ "$wait" -lt 5 ]; then wait=5; fi
             sleep "$wait"
           done
