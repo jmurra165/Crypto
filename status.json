@@ -1,0 +1,21 @@
+{
+ "updated": 1792758807688,
+ "pages": 53,
+ "fetched": 5246,
+ "added": 120,
+ "codes": 132,
+ "priced": 59,
+ "skippedCap": 3,
+ "counts": {
+  "pending": 48,
+  "notrade": 1355,
+  "ok": 3764,
+  "nodata": 244
+ },
+ "first": 1786659304000,
+ "last": 1792726811000,
+ "errors": [
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/ELK.AX?interval=5m&range=60d"
+ ],
+ "errorCount": 1
+}
