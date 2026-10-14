@@ -1,0 +1,22 @@
+{
+ "updated": 1795800227546,
+ "pages": 54,
+ "fetched": 5383,
+ "added": 93,
+ "codes": 106,
+ "priced": 41,
+ "skippedCap": 14,
+ "counts": {
+  "pending": 45,
+  "nodata": 504,
+  "ok": 5634,
+  "notrade": 2436
+ },
+ "first": 1786659304000,
+ "last": 1795752052000,
+ "errors": [
+  "400 https://asx.api.markitdigital.com/asx-research/1.0/companies/HMX/header",
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/INN.AX?interval=5m&range=60d"
+ ],
+ "errorCount": 2
+}
