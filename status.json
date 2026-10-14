@@ -1,0 +1,19 @@
+{
+ "updated": 1792152907506,
+ "pages": 56,
+ "fetched": 5560,
+ "added": 1,
+ "codes": 19,
+ "priced": 0,
+ "skippedCap": 0,
+ "counts": {
+  "pending": 19,
+  "nodata": 212,
+  "ok": 3181,
+  "notrade": 1093
+ },
+ "first": 1786659304000,
+ "last": 1792123343000,
+ "errors": [],
+ "errorCount": 0
+}
