@@ -1,0 +1,21 @@
+{
+ "updated": 1794583038010,
+ "pages": 52,
+ "fetched": 5159,
+ "added": 76,
+ "codes": 85,
+ "priced": 34,
+ "skippedCap": 12,
+ "counts": {
+  "pending": 37,
+  "nodata": 437,
+  "ok": 5016,
+  "notrade": 2162
+ },
+ "first": 1786659304000,
+ "last": 1794543187000,
+ "errors": [
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/AXR.AX?interval=5m&range=60d"
+ ],
+ "errorCount": 1
+}
