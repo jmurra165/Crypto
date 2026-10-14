@@ -85,6 +85,9 @@ export const DAYTWO = Object.assign({}, FRESH, { minAge: 24, maxAge: 72 });
 // Control (14 Oct 2026, replaced Day-two coins, which lost under every version tried): the Fresh launches rules without
 // the quality filters, never tuned. A fixed baseline that shows live whether the filters and tuning are earning their keep,
 // and the widest sample of young-coin pumps for finding the next pattern.
+// Early entry (14 Oct 2026): buys young coins once up 10% in the hour instead of 20%, with the trade-size filter relaxed
+// to $25 so earlier, smaller pumps are not all screened out. Replay: +3.3% over 14 trades, ahead in all three thirds.
+export const EARLY = Object.assign({}, FRESH, { minH1: 10, minTrade: 25 });
 export const CONTROL = Object.assign({}, FRESH, { minTrade: 0, maxH24: 100000 });
 export const ADAPTIVE_FRESH = Object.assign({}, FRESH, { maxAge: 48 });
 export const ADAPTIVE_VERSION = 3;
@@ -99,6 +102,7 @@ export const WALLETS = [
   { key: "a", file: "wallet.json", name: "Brand-new launches", base: BRANDNEW, lock: LOCK_ENTRY, resetKey: "resetId", metaKey: "wallet" },
   { key: "b", file: "wallet-b.json", name: "Strong pumps", base: STRONG, lock: LOCK_ENTRY, resetKey: "resetIdB", metaKey: "walletB" },
   { key: "d", file: "wallet-d.json", name: "Control (no filters)", base: CONTROL, lock: "all", resetKey: "resetIdD", metaKey: "walletD" },
+  { key: "f", file: "wallet-f.json", name: "Early entry", base: EARLY, lock: LOCK_ENTRY, resetKey: "resetIdF", metaKey: "walletF" },
   { key: "c", file: "wallet-c.json", name: "Adaptive launches", base: ADAPTIVE_START, lock: [], resetKey: "resetIdC", metaKey: "walletC" }
 ];
 export const baseSig = P => JSON.stringify(Object.keys(P).sort().map(k => [k, P[k]]));

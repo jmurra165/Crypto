@@ -104,7 +104,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
   const follow = cache.follow || {};
   Object.keys(follow).forEach(a => { if (now - follow[a] > 48 * 3600e3) delete follow[a]; });
   const followIds = Object.keys(follow).sort((p, q) => follow[q] - follow[p]).slice(0, 200);
-  const heldEarly = [...new Set(["wallet.json", "wallet-b.json", "wallet-c.json", "wallet-d.json", "wallet-e.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
+  const heldEarly = [...new Set(["wallet.json", "wallet-b.json", "wallet-c.json", "wallet-d.json", "wallet-e.json", "wallet-f.json"].flatMap(f => Object.keys((readJSON(path.join(dataDir, f), {}) || {}).pos || {})))];
   const ids = [...new Set([...watch, ...openIds, ...heldEarly, ...trend.slice(0, 30), ...gtTrend.slice(0, 60), ...vol.slice(0, 70), ...fresh.slice(0, 20), ...followIds])].slice(0, 420);
 
   // 2. Prices
