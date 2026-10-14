@@ -82,6 +82,10 @@ export const FRESH = Object.assign({}, DEFAULTS, { buyLine: -29, rugMax: 30, max
 export const BRANDNEW = Object.assign({}, FRESH, { minH1: -1000, minM5: 5, maxAge: 6, ageRug: 0.5 });
 export const STRONG = Object.assign({}, FRESH, { minH1: 60 });
 export const DAYTWO = Object.assign({}, FRESH, { minAge: 24, maxAge: 72 });
+// Control (14 Oct 2026, replaced Day-two coins, which lost under every version tried): the Fresh launches rules without
+// the quality filters, never tuned. A fixed baseline that shows live whether the filters and tuning are earning their keep,
+// and the widest sample of young-coin pumps for finding the next pattern.
+export const CONTROL = Object.assign({}, FRESH, { minTrade: 0, maxH24: 100000 });
 export const ADAPTIVE_FRESH = Object.assign({}, FRESH, { maxAge: 48 });
 export const ADAPTIVE_VERSION = 3;
 export const ADAPTIVE_START = ADAPTIVE_FRESH;
@@ -94,7 +98,7 @@ export const WALLETS = [
   { key: "e", file: "wallet-e.json", name: "Fresh launches", base: FRESH, lock: LOCK_ENTRY, resetKey: "resetIdE", metaKey: "walletE" },
   { key: "a", file: "wallet.json", name: "Brand-new launches", base: BRANDNEW, lock: LOCK_ENTRY, resetKey: "resetId", metaKey: "wallet" },
   { key: "b", file: "wallet-b.json", name: "Strong pumps", base: STRONG, lock: LOCK_ENTRY, resetKey: "resetIdB", metaKey: "walletB" },
-  { key: "d", file: "wallet-d.json", name: "Day-two coins", base: DAYTWO, lock: LOCK_ENTRY, resetKey: "resetIdD", metaKey: "walletD" },
+  { key: "d", file: "wallet-d.json", name: "Control (no filters)", base: CONTROL, lock: "all", resetKey: "resetIdD", metaKey: "walletD" },
   { key: "c", file: "wallet-c.json", name: "Adaptive launches", base: ADAPTIVE_START, lock: [], resetKey: "resetIdC", metaKey: "walletC" }
 ];
 export const baseSig = P => JSON.stringify(Object.keys(P).sort().map(k => [k, P[k]]));
@@ -225,7 +229,7 @@ export function stepWallet(W, obs, P, ctx) {
   const sell = (a, frac, why) => {
     const p = W.pos[a], o = obs.get(a), qty = p.qty * frac, costPart = p.cost * frac, out = o && o.px > 0 ? sellValue(qty, o, p) : 0;
     W.cash += out;
-    W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at });
+    W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at, f: p.f, peak: p.hi && p.px0 ? Math.round((p.hi / p.px0 - 1) * 1000) / 1000 : undefined });
     p.qty -= qty; p.cost -= costPart;
     if (frac >= 1) { delete W.pos[a]; W.cool[a] = now; if (out - costPart < 0 && P.lossCool > 0) { W.lcool = W.lcool || {}; W.lcool[a] = now; } }
   };
@@ -291,7 +295,10 @@ export function stepWallet(W, obs, P, ctx) {
     const inf = ctx.info ? ctx.info(a) : { sym: a.slice(0, 4) };
     W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, liq0: o.liq, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
     W.cash -= amt;
-    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, early: early && !(o.score >= P.buyLine) ? 1 : undefined, dip: viaDip ? 1 : undefined });
+    // Conditions at the moment of buying, kept so live trades can be analysed later.
+    const r2 = v => (typeof v === "number" && isFinite(v)) ? Math.round(v * 100) / 100 : null;
+    W.pos[a].f = { age: r2(o.age), h1: r2(o.h1), m5: r2(o.m5), h24: r2(o.h24), rug: o.rug, liq: Math.round(o.liq), lm: r2(o.lm), ats: r2(o.ats), bp: r2(o.bp), br: r2(ctx.breadth), src: o.src || "" };
+    if (ctx.keepHist !== false) W.hist.unshift({ t: now, side: "buy", sym: inf.sym, a, amt, px: fill, checks: inf.checks, conf: inf.conf, score: o.score, f: W.pos[a].f, early: early && !(o.score >= P.buyLine) ? 1 : undefined, dip: viaDip ? 1 : undefined });
   }
   for (const a of Object.keys(W.watch)) { if (now - W.watch[a].t > 3600e3) delete W.watch[a]; }
   // A pending confirmation is dropped when the coin was observed and no longer qualifies.

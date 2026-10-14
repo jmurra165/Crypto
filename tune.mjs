@@ -113,7 +113,7 @@ export function tune({ dataDir, now = Date.now(), force = false } = {}) {
     if (lines.length < 2) { W.status = "No recorded data to replay yet."; W.currentText = describe(current); continue; }
     const cur = evalP(current);
     W.table.push({ label: "Current rules", kind: "current", train: cur.train, test: cur.test });
-    const cands = neighbours(current, w.lock).map(c => Object.assign(c, evalP(c.P)));
+    const cands = w.lock === "all" ? [] : neighbours(current, w.lock).map(c => Object.assign(c, evalP(c.P)));
     cands.forEach(c => W.table.push({ label: "Change: " + c.label, kind: "variation", key: c.key, val: c.val, train: c.train, test: c.test }));
     const total = cur.train.n + (cur.test ? cur.test.n : 0), blockers = [];
     if (out.spanDays < MIN_DAYS) blockers.push(out.spanDays + " of " + MIN_DAYS + " days of data recorded");
@@ -132,7 +132,8 @@ export function tune({ dataDir, now = Date.now(), force = false } = {}) {
       W.table.forEach(r => { if (r.key === picked.key && r.val === picked.val) r.picked = true; });
       W.status = "Rule changed today. " + W.history[0].text + ". On the recent data it was not chosen on, it returned " + picked.test.ret + "% against " + cur.test.ret + "% for the old rule.";
       changes.push(w.name + ": " + W.history[0].text);
-    } else if (!W.ready) W.status = "Still collecting: " + blockers.join(" and ") + ". No rule can change until both are met.";
+    } else if (w.lock === "all") W.status = "Fixed baseline: this wallet's rules are never tuned, so the others can be measured against it.";
+    else if (!W.ready) W.status = "Still collecting: " + blockers.join(" and ") + ". No rule can change until both are met.";
     else W.status = "No change today. None of the " + cands.length + " one-step variations beat the current rules on both the older data and the recent data it was not chosen on.";
     W.currentText = describe(W.current);
   }
