@@ -1,0 +1,21 @@
+{
+ "updated": 1795190471947,
+ "pages": 53,
+ "fetched": 5257,
+ "added": 72,
+ "codes": 89,
+ "priced": 23,
+ "skippedCap": 13,
+ "counts": {
+  "pending": 39,
+  "nodata": 474,
+  "notrade": 2291,
+  "ok": 5297
+ },
+ "first": 1786659304000,
+ "last": 1795142952000,
+ "errors": [
+  "400 https://asx.api.markitdigital.com/asx-research/1.0/companies/MZF/header"
+ ],
+ "errorCount": 1
+}
