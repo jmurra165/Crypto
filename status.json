@@ -1,0 +1,25 @@
+{
+ "updated": 1793368689588,
+ "pages": 54,
+ "fetched": 5352,
+ "added": 599,
+ "codes": 641,
+ "priced": 192,
+ "skippedCap": 9,
+ "counts": {
+  "pending": 317,
+  "nodata": 300,
+  "ok": 4407,
+  "notrade": 1847
+ },
+ "first": 1786659304000,
+ "last": 1793334326000,
+ "errors": [
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/POW.AX?interval=5m&range=60d",
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/WLC.AX?interval=5m&range=60d",
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/ELK.AX?interval=5m&range=60d",
+  "422 https://query1.finance.yahoo.com/v8/finance/chart/SCX.AX?interval=5m&range=60d",
+  "400 https://asx.api.markitdigital.com/asx-research/1.0/companies/BNL/header"
+ ],
+ "errorCount": 5
+}
