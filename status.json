@@ -1,0 +1,22 @@
+{
+ "updated": 1793976947267,
+ "pages": 51,
+ "fetched": 5050,
+ "added": 81,
+ "codes": 94,
+ "priced": 37,
+ "skippedCap": 12,
+ "counts": {
+  "nodata": 414,
+  "pending": 30,
+  "notrade": 2046,
+  "ok": 4738
+ },
+ "first": 1786659304000,
+ "last": 1793931255000,
+ "errors": [
+  "400 https://asx.api.markitdigital.com/asx-research/1.0/companies/PA1/header",
+  "400 https://asx.api.markitdigital.com/asx-research/1.0/companies/MBL/header"
+ ],
+ "errorCount": 2
+}
