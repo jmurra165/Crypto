@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ASX Radar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Same look as Meme Radar. One column: verdict for the current setup, the setup itself, continue-or-fade chart, slice tables, then the event tape. */
+:root{
+  color-scheme:dark;
+  --bg:#0d1417; --surface:#141e23; --raised:#1b282e; --line:#26363d;
+  --fg:#e4edf0; --muted:#8a9fa7; --accent:#7aa7ff;
+  --buy:#3ecf8e; --sell:#f0616d; --warn:#f2a93d;
+  --buy-bg:rgba(62,207,142,.13); --sell-bg:rgba(240,97,109,.14); --warn-bg:rgba(242,169,61,.15); --mute-bg:rgba(138,159,167,.14);
+  --h1:#7aa7ff; --h2:#c49bff; --h3:#f2a93d;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    color-scheme:light;
+    --bg:#f1f5f6; --surface:#ffffff; --raised:#f5f8f9; --line:#d3dee2;
+    --fg:#122027; --muted:#586d76; --accent:#2456c9;
+    --buy:#0c7f4d; --sell:#c22c3b; --warn:#9a5b00;
+    --buy-bg:rgba(12,127,77,.10); --sell-bg:rgba(194,44,59,.09); --warn-bg:rgba(154,91,0,.11); --mute-bg:rgba(88,109,118,.11);
+    --h1:#2456c9; --h2:#7a3fc7; --h3:#9a5b00;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--body);padding-block:20px 48px;padding-inline:16px}
+.wrap{max-width:1220px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.up{color:var(--buy)} .down{color:var(--sell)}
+h2{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+h1{font:800 30px/1 var(--display);margin:0;letter-spacing:-.02em}
+h1 small{display:block;font:500 13px/1.4 var(--body);color:var(--muted);letter-spacing:0;margin-top:6px}
+.status{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;margin-right:6px}
+.dot.live{background:var(--buy)} .dot.err{background:var(--sell)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.phd{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between}
+.hero{flex-direction:row;flex-wrap:wrap;gap:20px 40px;align-items:flex-start}
+.hero.edge{border-color:var(--buy);background:linear-gradient(var(--buy-bg),var(--buy-bg)),var(--surface)}
+.eyebrow{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.big{font:600 40px/1.15 var(--mono);letter-spacing:-.02em}
+.kpis{flex:1 1 300px;display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px 22px}
+.kpis div{border-top:2px solid var(--line);padding-top:8px;min-width:0}
+.kpis b{display:block;font:600 18px var(--mono)} .kpis span{display:block;font-size:12px;color:var(--muted)}
+.lead{max-width:80ch;margin:0;color:var(--muted)} .lead b{color:var(--fg);font-weight:500}
+.pill{display:inline-block;font:600 11px/1 var(--body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px;white-space:nowrap}
+.v-edge{background:var(--buy);color:var(--bg)} .v-costs{background:var(--warn-bg);color:var(--warn)}
+.v-mixed{background:var(--mute-bg);color:var(--fg)} .v-none{background:var(--sell-bg);color:var(--sell)} .v-few{background:var(--mute-bg);color:var(--muted)}
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px}
+.setup label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted)}
+.setup label.check{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--fg)}
+.setup select,.setup input[type=number],.setup input[type=search]{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:7px 10px;color:var(--fg);font-size:14px;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{flex:1;background:var(--raised);border:0;padding:7px 8px;color:var(--muted);font-size:13px;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--bg);font-weight:600}
+.btn{background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:6px 12px}
+.btn:hover{border-color:var(--accent)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;max-width:100%;scrollbar-width:none}
+.tab{flex:none;white-space:nowrap;background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--muted);font-weight:500;margin-bottom:-1px}
+.tab[aria-selected=true]{color:var(--fg);border-color:var(--accent)}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--raised)}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.edge{background:var(--buy-bg)} tbody tr.edge td:first-child{box-shadow:inset 4px 0 0 var(--buy)}
+td.hl{white-space:normal;min-width:260px;max-width:440px;line-height:1.35}
+td.hl small{display:block;color:var(--muted);font-size:12px}
+.code{font:600 13px var(--mono)}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.empty{padding:36px 16px;text-align:center;color:var(--muted)}
+.notes{color:var(--muted);font-size:13px;max-width:90ch} .notes li{margin-bottom:6px}
+.more{align-self:center}
+@media (max-width:600px){ .big{font-size:32px} h1{font-size:26px} th,td{padding:8px 9px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>ASX Radar<small>Small caps after price-sensitive announcements · research only, no trading</small></h1>
+    <div class="status"><span id="st"><span class="dot"></span>Loading…</span><a href="../">Meme Radar →</a></div>
+  </header>
+
+  <section class="panel hero" id="hero">
+    <div style="flex:0 1 330px;display:flex;flex-direction:column;gap:8px">
+      <span class="eyebrow" id="heroEye">Average trade after costs</span>
+      <span class="big num" id="heroBig">–</span>
+      <span id="heroPill"></span>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <p class="lead" id="heroLead" style="flex-basis:100%"></p>
+  </section>
+
+  <section class="panel">
+    <div class="phd"><h2>Setup</h2><button class="btn" id="reset">Reset to defaults</button></div>
+    <div class="setup">
+      <label>Which moves to buy<div class="seg" id="side"><button data-v="up">Jumped up</button><button data-v="down">Dropped</button><button data-v="all">All</button></div></label>
+      <label>Minimum move at entry (%)<input type="number" id="minJump" min="0" step="1"></label>
+      <label>Sell at<div class="seg" id="horizon"><button data-v="r30">30 min</button><button data-v="r2h">2 hours</button><button data-v="rc">Close</button></div></label>
+      <label>Minimum $ traded by entry<input type="number" id="minVal" min="0" step="5000"></label>
+      <label>Minimum share price ($)<input type="number" id="minPx" min="0" step="0.01"></label>
+      <label>Parcel size ($)<input type="number" id="parcel" min="500" step="500"></label>
+      <label>Brokerage per side ($)<input type="number" id="brokerage" min="0" step="1"></label>
+      <label>Spread paid, round trip (ticks)<input type="number" id="spreadTicks" min="0" step="0.5"></label>
+      <label>Extra slippage (%)<input type="number" id="slipPct" min="0" step="0.1"></label>
+      <label class="check"><input type="checkbox" id="excludeHalt"> Leave out trading halts</label>
+    </div>
+  </section>
+
+  <section class="panel chart">
+    <div class="phd"><h2>Continue or fade?</h2><div class="legend"><span><i style="background:var(--h1)"></i>30 min</span><span><i style="background:var(--h2)"></i>2 hours</span><span><i style="background:var(--h3)"></i>Close</span></div></div>
+    <p class="lead">Average move after entry, before costs, for every announcement grouped by how far the price had already moved at entry. Bars on the same side as the move mean it kept going; bars on the other side mean it faded.</p>
+    <div id="fade"></div>
+  </section>
+
+  <section class="panel">
+    <div class="phd"><h2>What works, sliced</h2><span class="muted" style="font-size:12px">Uses the setup above. A slice needs 30+ trades in each half before it gets a verdict.</span></div>
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="tablebox"><table><thead><tr><th>Group</th><th>Trades</th><th>Before costs</th><th>Costs</th><th>After costs</th><th>Win rate</th><th>Older half</th><th>Recent half</th><th class="l">Verdict</th></tr></thead><tbody id="slice"></tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="phd"><h2>Trades in this setup</h2><input type="search" id="q" placeholder="Search code or headline" style="background:var(--raised);border:1px solid var(--line);border-radius:6px;padding:6px 10px;min-width:0;flex:0 1 260px"></div>
+    <div class="tablebox"><table><thead><tr><th>When</th><th class="l">Announcement</th><th>Move at entry</th><th>30 min</th><th>2 hours</th><th>Close</th><th>Best / worst</th><th>After costs</th></tr></thead><tbody id="tape"></tbody></table></div>
+    <button class="btn more" id="more" hidden>Show more</button>
+  </section>
+
+  <section class="panel">
+    <h2>How it's measured</h2>
+    <ul class="notes">
+      <li><b>Events:</b> every price-sensitive ASX announcement from ordinary shares with a market cap up to $2b (today's cap, not the cap on the day). Collected after the close each weekday; Yahoo keeps 60 days of 5-minute prices, so earlier events are kept with their bars from then on.</li>
+      <li><b>Entry:</b> released before 10:00, after 15:30 or overnight → the 10:15 price next session (after the staggered open). Released during the session → the close of the first full 5-minute bar after release. No trade within 30 minutes → left out.</li>
+      <li><b>One trade per entry:</b> when a company puts out several announcements before the same open, they share one entry and are counted once.</li>
+      <li><b>Move at entry</b> is the entry price against the last price before the announcement. Returns are long only, from the entry price.</li>
+      <li><b>Costs:</b> brokerage both ways on the parcel, the spread in price steps (0.1c under 10c, 0.5c to $2, 1c above), plus slippage. On a 2c stock one price step is 5%, so cheap shares carry big costs.</li>
+      <li><b>Verdicts</b> split the trades into an older and a recent half by date; an edge only counts if it's positive after costs in both. Prices are from Yahoo (unofficial) and miss the bid/ask, so treat this as research, not a trading signal.</li>
+    </ul>
+  </section>
+</div>
+
+<script type="module">
+import * as S from "./stats.js";
+const DATA = "https://raw.githubusercontent.com/jmurra165/Crypto/asx-data/";
+const $ = id => document.getElementById(id);
+const pct = (x, d = 1) => x == null || !isFinite(x) ? "–" : (x > 0 ? "+" : "") + (x * 100).toFixed(d) + "%";
+const cls = x => x > 0 ? "up" : x < 0 ? "down" : "";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const money = x => x >= 1e6 ? "$" + (x / 1e6).toFixed(1) + "m" : x >= 1e3 ? "$" + Math.round(x / 1e3) + "k" : "$" + Math.round(x);
+const KEY = "asx-radar-setup-v1";
+const price = p => p == null ? "–" : "$" + (p < 0.1 ? p.toFixed(3) : p < 2 ? p.toFixed(3).replace(/0$/, "") : p.toFixed(2));
+
+let events = [], tab = "category", shown = 60;
+let f = { ...S.DEFAULT_FILTER }, c = { ...S.DEFAULT_COSTS };
+try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { Object.assign(f, s.f); Object.assign(c, s.c); } } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ f, c })); } catch (e) {} };
+
+function bindSeg(id, obj, key) {
+  const el = $(id);
+  const paint = () => el.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === obj[key]));
+  el.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; obj[key] = b.dataset.v; paint(); save(); render(); });
+  paint(); return paint;
+}
+function bindNum(id, obj, key) {
+  const el = $(id); el.value = obj[key];
+  el.addEventListener("input", () => { const v = parseFloat(el.value); if (isFinite(v) && v >= 0) { obj[key] = v; save(); render(); } });
+  return () => { el.value = obj[key]; };
+}
+const painters = [bindSeg("side", f, "side"), bindSeg("horizon", f, "horizon"), bindNum("minJump", f, "minJump"), bindNum("minVal", f, "minVal"), bindNum("minPx", f, "minPx"),
+  bindNum("parcel", c, "parcel"), bindNum("brokerage", c, "brokerage"), bindNum("spreadTicks", c, "spreadTicks"), bindNum("slipPct", c, "slipPct")];
+$("excludeHalt").checked = f.excludeHalt;
+$("excludeHalt").addEventListener("change", e => { f.excludeHalt = e.target.checked; save(); render(); });
+$("reset").addEventListener("click", () => { Object.assign(f, S.DEFAULT_FILTER); Object.assign(c, S.DEFAULT_COSTS); $("excludeHalt").checked = f.excludeHalt; painters.forEach(p => p()); save(); render(); });
+$("q").addEventListener("input", () => { shown = 60; renderTape(); });
+$("more").addEventListener("click", () => { shown += 100; renderTape(); });
+
+$("tabs").innerHTML = Object.entries(S.SLICES).map(([k, s]) => `<button class="tab" role="tab" data-k="${k}">${s.label}</button>`).join("");
+$("tabs").addEventListener("click", e => { const b = e.target.closest(".tab"); if (!b) return; tab = b.dataset.k; renderSlice(); });
+
+const hLabel = () => S.HORIZONS.find(h => h.key === f.horizon).label.toLowerCase();
+const sideText = () => f.side === "up" ? `jumped ${f.minJump}%+` : f.side === "down" ? `dropped ${f.minJump}%+` : "moved any amount";
+
+let sel = [];
+function render() {
+  sel = S.filterEvents(events, f);
+  const s = S.stats(sel, f, c);
+  $("hero").classList.toggle("edge", s.verdict.key === "edge");
+  $("heroEye").textContent = `Average trade after costs · sell at ${hLabel()}`;
+  $("heroBig").textContent = pct(s.net, 2); $("heroBig").className = "big num " + cls(s.net);
+  $("heroPill").innerHTML = `<span class="pill v-${s.verdict.key}">${s.verdict.label}</span>`;
+  const k = [
+    [s.n, "Trades in this setup"],
+    [pct(s.gross, 2), "Average before costs", cls(s.gross)],
+    [pct(-s.cost, 2), "Average round-trip cost", "down"],
+    [s.hit == null ? "–" : Math.round(s.hit * 100) + "%", "Win rate after costs"],
+    [s.cont == null ? "–" : Math.round(s.cont * 100) + "%", "Kept moving the same way"],
+    [pct(s.older, 2), `Older half (${s.nOld})`, cls(s.older)],
+    [pct(s.recent, 2), `Recent half (${s.nNew})`, cls(s.recent)],
+  ];
+  $("kpis").innerHTML = k.map(([v, l, cl]) => `<div><b class="${cl || ""}">${v}</b><span>${l}</span></div>`).join("");
+  $("heroLead").innerHTML = s.n
+    ? `Buying small caps that had <b>${sideText()}</b> by entry, with at least <b>${money(f.minVal)}</b> traded, and selling at <b>${hLabel()}</b>: ${s.n} trades averaged <b class="${cls(s.gross)}">${pct(s.gross, 2)}</b> before costs and <b class="${cls(s.net)}">${pct(s.net, 2)}</b> after. ` +
+      (s.verdict.key === "edge" ? "It held up in both the older and recent halves." : s.verdict.key === "costs" ? "There is a move, but costs eat it." : s.verdict.key === "few" ? "Not enough trades yet to call it." : "It does not hold up in both halves.")
+    : "No trades match this setup yet.";
+  renderFade(); renderSlice(); renderTape();
+}
+
+function renderFade() {
+  const g = S.fadeGrid(events, f);
+  if (!g.length) { $("fade").innerHTML = `<div class="empty">No data yet.</div>`; return; }
+  const W = 900, Hh = 300, padL = 46, padB = 52, padT = 14, cw = (W - padL - 10) / g.length;
+  const vals = g.flatMap(r => S.HORIZONS.map(h => r[h.key] ?? 0));
+  const lim = Math.max(0.01, ...vals.map(Math.abs)) * 1.1;
+  const y = v => padT + (Hh - padT - padB) * (1 - (v + lim) / (2 * lim));
+  const cols = ["var(--h1)", "var(--h2)", "var(--h3)"];
+  let svg = `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Average return after entry by jump size">`;
+  for (const t of [-lim, -lim / 2, 0, lim / 2, lim]) svg += `<line x1="${padL}" x2="${W - 6}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" ${t === 0 ? 'stroke-width="1.5" stroke="var(--muted)"' : ""}/><text x="${padL - 6}" y="${y(t) + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${pct(t, 0)}</text>`;
+  g.forEach((r, i) => {
+    const x0 = padL + i * cw, bw = Math.min(22, (cw - 14) / 3);
+    S.HORIZONS.forEach((h, j) => {
+      const v = r[h.key] ?? 0, x = x0 + (cw - 3 * bw - 4) / 2 + j * (bw + 2);
+      svg += `<rect x="${x}" y="${Math.min(y(v), y(0))}" width="${bw}" height="${Math.max(1, Math.abs(y(v) - y(0)))}" fill="${cols[j]}" rx="2"><title>${esc(r.key)} · ${h.label}: ${pct(v, 2)} (${r.n} events)</title></rect>`;
+    });
+    const words = r.key.split(" ");
+    svg += `<text x="${x0 + cw / 2}" y="${Hh - padB + 18}" text-anchor="middle" font-size="11" fill="var(--fg)">${esc(words[0])}</text><text x="${x0 + cw / 2}" y="${Hh - padB + 32}" text-anchor="middle" font-size="11" fill="var(--fg)">${esc(words.slice(1).join(" "))}</text><text x="${x0 + cw / 2}" y="${Hh - padB + 46}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="IBM Plex Mono,monospace">n=${r.n}</text>`;
+  });
+  $("fade").innerHTML = svg + "</svg>";
+}
+
+function renderSlice() {
+  $("tabs").querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.k === tab));
+  const rows = S.table(sel, tab, f, c);
+  $("slice").innerHTML = rows.length ? rows.map(r => `<tr class="${r.verdict.key === "edge" ? "edge" : ""}"><td>${esc(r.key)}</td><td class="num">${r.n}</td><td class="num ${cls(r.gross)}">${pct(r.gross, 2)}</td><td class="num muted">${pct(-r.cost, 2)}</td><td class="num ${cls(r.net)}"><b>${pct(r.net, 2)}</b></td><td class="num">${Math.round(r.hit * 100)}%</td><td class="num ${cls(r.older)}">${pct(r.older, 1)} <span class="muted">(${r.nOld})</span></td><td class="num ${cls(r.recent)}">${pct(r.recent, 1)} <span class="muted">(${r.nNew})</span></td><td class="l"><span class="pill v-${r.verdict.key}">${r.verdict.label}</span></td></tr>`).join("")
+    : `<tr><td colspan="9" class="empty">No trades match this setup.</td></tr>`;
+}
+
+function renderTape() {
+  const q = $("q").value.trim().toLowerCase();
+  const list = sel.filter(e => !q || e.c.toLowerCase().includes(q) || e.h.toLowerCase().includes(q));
+  const fmt = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  $("tape").innerHTML = list.length ? list.slice(0, shown).map(e => {
+    const id = (e.k.split("-")[1] || "");
+    const net = e[f.horizon] - S.costFrac(e, c);
+    return `<tr><td class="num muted">${fmt.format(e.t)}</td><td class="l hl"><span class="code">${esc(e.c)}</span> · <a href="https://www.asx.com.au/asx/v2/statistics/displayAnnouncement.do?display=pdf&idsId=${encodeURIComponent(id)}" target="_blank" rel="noopener">${esc(e.h)}</a><small>${esc(S.categoryLabel(e.cat))} · ${price(e.px)} · ${e.cap ? money(e.cap) + " cap" : "cap unknown"} · ${money(e.val)} traded by entry</small></td><td class="num ${cls(e.jump)}">${pct(e.jump)}</td><td class="num ${cls(e.r30)}">${pct(e.r30)}</td><td class="num ${cls(e.r2h)}">${pct(e.r2h)}</td><td class="num ${cls(e.rc)}">${pct(e.rc)}</td><td class="num"><span class="up">${pct(e.mfe, 0)}</span> / <span class="down">${pct(e.mae, 0)}</span></td><td class="num ${cls(net)}"><b>${pct(net)}</b></td></tr>`;
+  }).join("") : `<tr><td colspan="8" class="empty">No trades match.</td></tr>`;
+  $("more").hidden = list.length <= shown;
+}
+
+async function load() {
+  try {
+    const [ev, st] = await Promise.all([fetch(DATA + "events.json?t=" + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), fetch(DATA + "status.json?t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)]);
+    events = ev.events || [];
+    const ok = events.filter(e => e.st === "ok");
+    const d = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", day: "numeric", month: "short" });
+    const upd = new Date(ev.updated).toLocaleString("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", hour: "numeric", minute: "2-digit" });
+    $("st").innerHTML = `<span class="dot live"></span>${ok.length} announcements measured${ok.length ? `, ${d.format(Math.min(...ok.map(e => e.t)))} – ${d.format(Math.max(...ok.map(e => e.t)))}` : ""} · updated ${upd}${st && st.errorCount ? ` · <span class="down">${st.errorCount} fetch errors</span>` : ""}`;
+  } catch (e) {
+    $("st").innerHTML = `<span class="dot err"></span>No data yet — the first collection runs on GitHub after the close.`;
+  }
+  render();
+}
+load();
+</script>
+</body>
+</html>

@@ -5,7 +5,7 @@ Read this first in any new chat about this project. Last updated 14 Oct 2026 (Br
 Owner: Jaidyn. Everything is a **simulation**; no real wallet is connected. Do not change wallet rules without asking Jaidyn first. Keep the repo public (Actions and Pages are free that way) and never add a payment method or a private key.
 
 ## What it is
-- **Page:** https://jmurra165.github.io/Crypto/ (`index.html`). Solana meme-coin scanner on DexScreener with momentum and rug scores, a demo wallet, auto wallets, signal outcomes, research and tuning panels.
+- **Page:** https://jmurra165.github.io/Crypto/ (`index.html`). The ASX side project has its own page at `/asx/` (see the end of these notes). Solana meme-coin scanner on DexScreener with momentum and rug scores, a demo wallet, auto wallets, signal outcomes, research and tuning panels.
 - **Tracker:** `collect.mjs`, run by `.github/workflows/track.yml`. It loops about every 45 s for about 50 min, then restarts itself. Results are force-pushed to the **`data` branch** (`wallet*.json`, `signals.json`, `tuning.json`, `research.json`, `launches.json`, `snap/` hourly gzip snapshots, `archive/`). Read the data with `git fetch origin +refs/heads/data:refs/remotes/origin/data` and then `git show origin/data:<file>`.
 - **Scoring:** lives in `index.html` between the `/*CORE>*/ ... /*<CORE*/` markers and is shared with the tracker.
 - **Rule engine:** `strategy.mjs`. It holds `stepWallet`, the rule sets, `WALLETS` (the registry), `GRID` (the tunable values) and `describe`.
@@ -92,9 +92,20 @@ Price source: `https://query1.finance.yahoo.com/v8/finance/chart/{CODE}.AX?inter
 
 Yahoo is unofficial, so it is fine for research but not for live trading. Stooq blocked us.
 
-**Next step (not started):**
-1. Collect 60 days of price-sensitive announcements from small caps.
-2. Line them up with the 5-minute prices.
-3. Measure whether the move continues or fades at 30 min, 2 hours and the close, broken down by announcement type, jump size, volume, sector and time of day.
-4. Count costs (brokerage plus the bid/ask spread).
-5. Run it on GitHub Actions to keep it free.
+The price-sensitive filter is `&priceSensitiveOnly=true` on the market feed; it caps at 10,000 items (about 3 months). Company headers (`/companies/{CODE}/header`) give market cap and today's bid/ask.
+
+**ASX Radar (built 14 Oct): research only, no trading or wallet.**
+- **Page:** https://jmurra165.github.io/Crypto/asx/ (`asx/index.html`). Setup controls (up/down moves, minimum move, sell at 30 min / 2 h / close, liquidity, price, costs) recompute everything in the browser. Shows a continue-or-fade chart, slice tables with verdicts and the trade tape with links to the announcement PDFs.
+- **Shared maths:** `asx/stats.js` (cost model, categories, slices, older-vs-recent verdicts). Used by the page and the collector.
+- **Collector:** `asx/collect.mjs`, run by `.github/workflows/asx.yml` weekdays about 5 pm Brisbane and on changes to the ASX scripts. Results are force-pushed to the **`asx-data` branch** (`events.json`, `bars.jsonl.gz` event-day 5-min bars kept past Yahoo's 60 days, `headers.json`, `summary.json`, `status.json`). It never touches the crypto `data` branch.
+- **Rules:** small caps = ordinary shares up to $2b cap (today's cap). Entry: before 10:00 / after 15:30 / overnight → 10:15 price next session; during the session → close of the first full 5-min bar after release; no trade within 30 min → left out. One trade per company per entry (several same-morning announcements count once). Long only.
+- **Default costs:** $5,000 parcel, $10 brokerage each side, 2 price steps of spread round trip (0.1c under 10c, 0.5c to $2, 1c above), 0.2% slippage.
+
+**First results (14 Aug to 14 Oct, 3,084 announcements measured, 2,256 unique entries):**
+- No edge anywhere yet. Every setup loses after costs in both halves.
+- Up-jumps fade slightly before costs, and bigger jumps fade more (up 10–20%: about -1.4% by the close; up 20–40%: about -2.3%). Only about a third keep moving the same way.
+- Costs are the killer on cheap shares: average round trip about 6.6% under the defaults, over 30% under 2c. Above 50c the before-cost moves are near zero.
+- Worth watching as data builds (too few cases, not a verdict): shares 20c+ that dropped 15%+ bounced about +1.6% net (21 trades, both halves positive); up-moves with $250k–1m traded by entry about +1.1% net (33 trades).
+- About 90% of price-sensitive announcements land before the open.
+
+**Ideas not started:** record live bid/ask at entry (header endpoint) to replace the tick-based spread estimate; a scheduled daily ASX review; add next-day open as a horizon.

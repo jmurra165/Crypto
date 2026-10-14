@@ -43,19 +43,32 @@ export const SLICES = {
   jump: { label: "Jump at entry", order: true, fn: e => band(e.jump * 100, [-15, -5, -2, 2, 5, 10, 20, 40], ["Down 15%+", "Down 5–15%", "Down 2–5%", "Flat (±2%)", "Up 2–5%", "Up 5–10%", "Up 10–20%", "Up 20–40%", "Up 40%+"]) },
   relVol: { label: "Volume by entry vs normal day", order: true, fn: e => e.rv == null ? null : band(e.rv, [0.25, 0.5, 1, 2, 5], ["Under 0.25×", "0.25–0.5×", "0.5–1×", "1–2×", "2–5×", "5×+"]) },
   tod: { label: "Time of announcement", order: true, fn: e => ({ pre: "Before the open", am: "10:00–12:00", mid: "12:00–14:00", pm: "14:00–15:30" })[e.tod] },
-  cap: { label: "Market cap", order: true, fn: e => e.cap == null ? null : band(e.cap / 1e6, [20, 50, 150, 500], ["Under $20m", "$20–50m", "$50–150m", "$150–500m", "$500m–2b"]) },
+  cap: { label: "Market cap", order: true, fn: e => !(e.cap > 0) ? null : band(e.cap / 1e6, [20, 50, 150, 500], ["Under $20m", "$20–50m", "$50–150m", "$150–500m", "$500m–2b"]) },
   price: { label: "Share price", order: true, fn: e => band(e.px, [0.02, 0.1, 0.5, 2], ["Under 2c", "2–10c", "10–50c", "50c–$2", "$2+"]) },
   liq: { label: "Traded by entry", order: true, fn: e => band(e.val, [10e3, 50e3, 250e3, 1e6], ["Under $10k", "$10–50k", "$50–250k", "$250k–1m", "$1m+"]) },
   sector: { label: "Sector", fn: e => e.sec || "Unknown" },
 };
 
-export const DEFAULT_FILTER = { side: "up", minJump: 5, minVal: 20000, horizon: "rc", excludeHalt: true };
+export const DEFAULT_FILTER = { side: "up", minJump: 5, minVal: 20000, minPx: 0, horizon: "rc", excludeHalt: true };
+
+// Several announcements from one company on one morning share a single entry and the same outcome.
+// Count each entry once, labelled by its first announcement that isn't a trading halt.
+export function dedupe(events) {
+  const best = new Map();
+  for (const e of events) {
+    const k = `${e.c}|${e.d}|${e.em}`, cur = best.get(k);
+    const rank = x => (x.cat === "halt" ? 1 : 0) * 1e15 + x.t;
+    if (!cur || rank(e) < rank(cur)) best.set(k, e);
+  }
+  return events.filter(e => best.get(`${e.c}|${e.d}|${e.em}`) === e);
+}
 
 export function filterEvents(events, f = DEFAULT_FILTER) {
-  return events.filter(e => {
-    if (e.st !== "ok" || e[f.horizon] == null) return false;
+  return dedupe(events.filter(e => e.st === "ok")).filter(e => {
+    if (e[f.horizon] == null) return false;
     if (f.excludeHalt && e.cat === "halt") return false;
     if (e.val < (f.minVal || 0)) return false;
+    if (e.px < (f.minPx || 0)) return false;
     const j = e.jump * 100;
     if (f.side === "up") return j >= f.minJump;
     if (f.side === "down") return j <= -f.minJump;
@@ -122,7 +135,7 @@ function sortVal(k, e) {
 
 // Continue-or-fade grid: mean gross return at each horizon for each jump band (all sides, same liquidity filter).
 export function fadeGrid(events, f = DEFAULT_FILTER) {
-  const base = events.filter(e => e.st === "ok" && !(f.excludeHalt && e.cat === "halt") && e.val >= (f.minVal || 0));
+  const base = dedupe(events.filter(e => e.st === "ok")).filter(e => !(f.excludeHalt && e.cat === "halt") && e.val >= (f.minVal || 0) && e.px >= (f.minPx || 0));
   const sl = SLICES.jump, g = new Map();
   for (const e of [...base].sort((a, b) => a.jump - b.jump)) { const k = sl.fn(e); if (!g.has(k)) g.set(k, []); g.get(k).push(e); }
   return [...g.entries()].map(([k, evs]) => ({ key: k, n: evs.length, ...Object.fromEntries(HORIZONS.map(H => [H.key, mean(evs.filter(e => e[H.key] != null).map(e => e[H.key]))])) }));

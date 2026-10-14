@@ -107,13 +107,13 @@ console.log(`announcements: ${pages} pages, ${fetched} price-sensitive in window
 function parseChart(j) {
   const r = j && j.chart && j.chart.result && j.chart.result[0];
   if (!r || !r.timestamp) return null;
-  const q = r.indicators.quote[0], bars = [];
+  const q = r.indicators.quote[0], bars = [], r4 = x => x == null ? x : +x.toFixed(4);
   for (let i = 0; i < r.timestamp.length; i++) {
     const ms = r.timestamp[i] * 1000, c = q.close[i];
     if (c == null || !(c > 0)) continue;  // no trades in this bar
     const s = syd(ms);
     if (s.min < 600 || s.min > 975) continue; // outside 10:00–16:15
-    bars.push({ ms, d: s.date, m: s.min, o: q.open[i] ?? c, h: q.high[i] ?? c, l: q.low[i] ?? c, c, v: q.volume[i] || 0 });
+    bars.push({ ms, d: s.date, m: s.min, o: r4(q.open[i] ?? c), h: r4(q.high[i] ?? c), l: r4(q.low[i] ?? c), c: r4(c), v: q.volume[i] || 0 });
   }
   return bars;
 }
@@ -124,7 +124,7 @@ for (const code of codes) {
   if (!hd || now - hd.at > HEADER_MAX_AGE) {
     const j = await get(`${M}/companies/${code}/header`);
     const d = j && j.data;
-    hd = headers[code] = d ? { at: now, cap: d.marketCap ?? null, sec: d.sector || "", type: d.securityType, bid: d.priceBid, ask: d.priceAsk } : { at: now, cap: null };
+    hd = headers[code] = d ? { at: now, cap: d.marketCap > 0 ? d.marketCap : null, sec: d.sector || "", type: d.securityType, bid: d.priceBid, ask: d.priceAsk } : { at: now, cap: null };
     await sleep(250);
   }
   const evs = need.filter(e => e.c === code);
