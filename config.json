@@ -1,1 +1,1 @@
-{"wallet": {"startSol": 10, "feePct": 1, "resetId": 2, "resetIdB": 2, "resetIdC": 2, "resetIdD": 2, "resetIdE": 1}}
+{"wallet": {"startSol": 10, "feePct": 1, "resetId": 2, "resetIdB": 2, "resetIdC": 2, "resetIdD": 2, "resetIdE": 1, "backfill": {"id": 1, "from": 1791886420153, "wallets": ["e", "a", "b", "c", "d"], "note": "Replayed from the 13 Oct 8:13pm restart with the 14 Oct rules (quality filters), then live"}}}

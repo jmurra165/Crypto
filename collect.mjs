@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { loadLines } from "./tune.mjs";
 import { WALLETS, rulesFor, describe, freshWallet, stepWallet } from "./strategy.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -276,9 +277,38 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
 
     const info = a => { const x = A.get(a), t = tokens.get(a); return { sym: (t && (t.pair.baseToken || {}).symbol) || "?", checks: x ? x.passN + "/" + x.checks.length : "", conf: x ? x.conf : "" }; };
     const OLD_NAMES = { "wallet.json": "Quick profit", "wallet-b.json": "Established coins", "wallet-c.json": "Adaptive", "wallet-d.json": "Recovery", "wallet-e.json": "Fresh launches" };
-    const ruleWallet = (file, name, P, idKey, metaKey, extra) => {
+    // Replaying a wallet from an earlier time ("backfill" in config.json): the recorded snapshots since then are run
+    // through the wallet's current rules, the result replaces the wallet (the old one is archived), and it carries on live.
+    const bf = cfg.backfill && cfg.backfill.id && cfg.backfill.from > 0 ? cfg.backfill : null;
+    let bfLines = null, symOf = null;
+    const backfill = (w, P, rid, R) => {
+      if (!bfLines) {
+        bfLines = loadLines(path.join(dataDir, "snap"), now).filter(l => l.t >= bf.from && l.t < now);
+        const names = new Map();
+        ((readJSON(path.join(dataDir, "launches.json"), {}) || {}).list || []).forEach(r => names.set(r.a, r.sym));
+        WALLETS.forEach(x => ((readJSON(path.join(dataDir, x.file), {}) || {}).hist || []).forEach(h => { if (h.a && h.sym) names.set(h.a, h.sym); }));
+        tokens.forEach((t, a) => names.set(a, (t.pair.baseToken || {}).symbol || names.get(a)));
+        symOf = a => names.get(a) || a.slice(0, 4) + "…";
+      }
+      const W = freshWallet(cfg.startSol, bf.from, { resetId: rid });
+      for (const ln of bfLines) {
+        const eq = stepWallet(W, ln.obs, P, { now: ln.t, breadth: ln.breadth, solPx, fee, confirmMin: 60e3, confirmMax: 12 * 60e3, countMisses: ln.full, missMax: 6, info: a => ({ sym: symOf(a), checks: "", conf: "" }) });
+        const lastEq = W.eq[W.eq.length - 1];
+        if (!lastEq || ln.t - lastEq.t >= 4.5 * 60e3) W.eq.push({ t: ln.t, v: Math.round(eq * 1e4) / 1e4 });
+      }
+      if (R && R.pos && R.start > 0) {
+        fs.mkdirSync(path.join(dataDir, "archive"), { recursive: true });
+        writeJSON(path.join(dataDir, "archive", w.file.replace(".json", "") + "-before-replay" + bf.id + ".json"), R);
+      }
+      W.backfillId = bf.id;
+      W.backfilled = { from: bf.from, to: bfLines.length ? bfLines[bfLines.length - 1].t : bf.from, note: bf.note || "" };
+      if (R && R.prev) W.prev = R.prev;
+      return W;
+    };
+    const ruleWallet = (file, name, P, idKey, metaKey, extra, key) => {
       const rid = num(cfg[idKey]);
       let R = readState(path.join(dataDir, file), null);
+      if (bf && solPx > 0 && (bf.wallets || []).includes(key) && (!R || R.backfillId !== bf.id)) R = backfill({ file }, P, rid, R);
       if (!R || R.resetId !== rid || !R.pos) {
         // A reset keeps the old wallet on file and carries a one-line summary of how it ended.
         let prev = null;
@@ -305,7 +335,7 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
     // Each wallet runs on its starting rules plus any change the daily tuning has adopted (see tune.mjs).
     WALLETS.forEach(w => {
       const T = tuning && tuning.wallets && tuning.wallets[w.key];
-      ruleWallet(w.file, w.name, rulesFor(w, tuning), w.resetKey, w.metaKey, { tuned: T ? { since: T.since, changes: (T.history || []).filter(h => !h.manual).length, ready: !!T.ready } : null });
+      ruleWallet(w.file, w.name, rulesFor(w, tuning), w.resetKey, w.metaKey, { tuned: T ? { since: T.since, changes: (T.history || []).filter(h => !h.manual).length, ready: !!T.ready } : null }, w.key);
     });
   }
 
