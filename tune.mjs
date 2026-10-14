@@ -29,7 +29,8 @@ export function loadLines(snapDir, now) {
         const ck = String(r[19] || ""); let fails = 0; for (let i = 0; i < 10 && i < ck.length; i++) if (ck[i] === "f") fails++;
         const b1 = r[9] || 0, s1 = r[10] || 0;
         if (r[1] > 0) obs.set(r[0], { px: r[1], liq: r[2] || 0, score: r[16], rug: r[17], fails, oc: r[20] || "p", h1: r[6] || 0, m5: r[5] || 0, h24: r[8] || 0, age: r[4] == null ? null : r[4], src: r[34] || "", hold: r[21] > 0 ? r[21] : 0, hg: null,
-          bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: r[14] > 0 ? r[13] / (r[14] / 6) : null });
+          bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: r[14] > 0 ? r[13] / (r[14] / 6) : null,
+          ats: b1 + s1 > 0 ? (r[13] || 0) / (b1 + s1) : null, lm: r[3] > 0 ? (r[2] || 0) / r[3] : null });
       }
       lines.push({ t: j.t, full: j.full !== false, obs });
     }

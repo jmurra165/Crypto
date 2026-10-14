@@ -265,7 +265,8 @@ export async function run({ root, getJSON = realGetJSON, now = Date.now(), pause
       // No liquidity figure this check: a data gap, so the wallets skip the coin rather than read it as a rug.
       if (!(p.liquidity && typeof p.liquidity.usd === "number")) return;
       obs.set(a, { px: x.px, liq: num(x.liq), score: x.score, rug: x.rug, fails: x.checks.slice(0, 10).filter(k => k.state === "fail").length, oc: x.onchain[0],
-        h1: num(ch.h1), m5: num(ch.m5), h24: num(ch.h24), age: x.ageH == null ? null : x.ageH, src: srcOf(a), hg: hgOf(a), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null });
+        h1: num(ch.h1), m5: num(ch.m5), h24: num(ch.h24), age: x.ageH == null ? null : x.ageH, src: srcOf(a), hg: hgOf(a), bp: b1 + s1 >= 20 ? b1 / (b1 + s1) : null, acc: num(v.h6) > 0 ? num(v.h1) / (num(v.h6) / 6) : null,
+        ats: b1 + s1 > 0 ? num(v.h1) / (b1 + s1) : null, lm: num(x.mc) > 0 ? num(x.liq) / num(x.mc) : null });
     });
     const fee = Math.max(0, Math.min(20, Number(cfg.feePct) || 0)) / 100;
     // Market direction: the typical one-hour move of tradeable coins this check.

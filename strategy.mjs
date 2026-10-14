@@ -39,7 +39,9 @@ export const DEFAULTS = {
   rugMemo: 0,       // skip coins whose rug score was 60 or more at any point in this many minutes (0 = off)
   lossCool: 0,      // after a losing sale, skip that coin for this many minutes (0 = only the usual 1-hour pause)
   mkt: -1000,       // only buy while the typical tradeable coin is up at least this % over the hour (-1000 = off)
-  ageRug: 1         // share of the rug score's age points that counts (1 = all, 0.5 = half)
+  ageRug: 1,        // share of the rug score's age points that counts (1 = all, 0.5 = half)
+  minTrade: 0,      // only buy when the last hour's average trade is at least this many USD (0 = off); filters bot-spam pumps
+  minLiqMc: 0       // only buy when pool liquidity is at least this share of market cap (0 = off)
 };
 
 // Rule sets in use since the first day's review (12 Oct 2026). That day's data showed the losses came from
@@ -59,7 +61,11 @@ export const RECOVERY = Object.assign({}, QUICK, { maxH24: 0 });
 // gain from those and get out before the fade. Small size, tight stop, fixed take-profit and a time limit.
 export const FRESH = Object.assign({}, DEFAULTS, { buyLine: -29, rugMax: 30, maxFails: 10, minLiq: 50000, confirm: false, sizeHi: 2.5, sizeLo: 2.5,
   stop: 0.1, lockAt: 0, trailAt: 0, halfAt: 0, fade: false, maxH1: 1000, maxM5: 1000, maxH24: 100000, take: 0.15, sellBelow: -1000,
-  maxAge: 24, minH1: 20, maxHold: 45, rugMemo: 60 });
+  maxAge: 24, minH1: 20, maxHold: 45, rugMemo: 60,
+  // Quality filters (14 Oct 2026). Comparing 114 recorded young-coin pumps, the losers stood out in two ways that held
+  // in both halves of the data: lots of tiny trades (bots padding the activity; average trade under ~$57 averaged -15%
+  // against -4%) and coins already up hundreds of percent on the day (over ~650% averaged -17.5% against -1.6%).
+  minTrade: 50, maxH24: 650 });
 
 // The five wallets from 13 Oct 2026 evening. The first two days showed that buying established coins on our
 // momentum score lost money under every rule tried, while quick in-and-out trades on young coins that passed the
@@ -83,7 +89,7 @@ export const ADAPTIVE_START = ADAPTIVE_FRESH;
 // Every wallet is retuned daily from the recorded data. Each keeps the settings that define it ("lock"), so the
 // five stay distinct experiments; the adaptive wallet may move any setting. TUNE_VERSION restarts all tuning.
 export const TUNE_VERSION = 4;
-const LOCK_ENTRY = ["maxAge", "minAge", "minH1", "minM5", "buyLine", "maxH1", "maxM5", "maxH24", "early", "dip", "confirm"];
+const LOCK_ENTRY = ["maxAge", "minAge", "minH1", "minM5", "buyLine", "maxH1", "maxM5", "early", "dip", "confirm"];
 export const WALLETS = [
   { key: "e", file: "wallet-e.json", name: "Fresh launches", base: FRESH, lock: LOCK_ENTRY, resetKey: "resetIdE", metaKey: "walletE" },
   { key: "a", file: "wallet.json", name: "Brand-new launches", base: BRANDNEW, lock: LOCK_ENTRY, resetKey: "resetId", metaKey: "wallet" },
@@ -114,7 +120,9 @@ export const GRID = {
   maxH1: [15, 25, 40, 1000],
   maxM5: [5, 10, 1000],
   early: [false, true],
-  maxH24: [0, 20, 50, 100, 300, 100000],
+  maxH24: [0, 20, 50, 100, 300, 650, 1000, 100000],
+  minTrade: [0, 25, 50, 100],
+  minLiqMc: [0, 0.05, 0.1, 0.2],
   dip: [0, 0.05, 0.08, 0.12],
   maxHG: [0.5, 1, 2, 1000],
   noBoost: [false, true],
@@ -158,6 +166,8 @@ export const LABELS = {
   minH1: v => (v <= -1000 ? "no minimum rise in the hour" : "only coins up at least " + v + "% in the last hour"),
   maxHold: v => (v ? "sell after " + v + " minutes" : "no time limit on holding"),
   minM5: v => (v <= -1000 ? "no minimum 5-minute move" : "only coins up at least " + v + "% in the last 5 minutes"),
+  minTrade: v => (v ? "only when the average trade is at least $" + v : "any average trade size"),
+  minLiqMc: v => (v ? "only when liquidity is at least " + Math.round(v * 100) + "% of market cap" : "any liquidity-to-value ratio"),
   rugMemo: v => (v ? "skip coins flagged as a rug risk in the last " + v + " minutes" : "no memory of earlier rug flags"),
   lossCool: v => (v ? "no re-buying a coin for " + Math.round(v / 60) + " hours after a loss on it" : "re-buying allowed an hour after a loss"),
   mkt: v => (v <= -1000 ? "trades whatever the market is doing" : "only buys while the typical coin is up at least " + v + "% over the hour")
@@ -180,6 +190,8 @@ export function describe(P) {
     (P.maxH24 <= 0 ? " Only buys coins that are down over the last 24 hours." : "") +
     (P.dip ? " It does not buy straight away: once a coin qualifies it waits up to an hour for a " + pc(P.dip) + " fall from the high, then buys when the price has stopped falling." : "") +
     (P.noBoost ? " Skips coins that came from DexScreener's paid-promotion lists." : "") +
+    (P.minTrade ? " Skips pumps where the average trade over the last hour is under $" + P.minTrade + ", a sign of bots padding the activity." : "") +
+    (P.minLiqMc ? " Skips coins whose pool holds less than " + Math.round(P.minLiqMc * 100) + "% of their market value." : "") +
     (P.ageRug != null && P.ageRug !== 1 ? (P.ageRug === 0 ? " The rug score is judged without the points it adds just for a coin being new." : " Only " + (P.ageRug === 0.5 ? "half" : Math.round(P.ageRug * 100) + "%") + " of the rug score's points for a coin being new are counted.") : "") +
     (P.rugMemo ? " Skips any coin flagged as a rug risk in the last " + (P.rugMemo >= 120 ? P.rugMemo / 60 + " hours" : P.rugMemo === 60 ? "hour" : P.rugMemo + " minutes") + "." : "") +
     (P.lossCool ? " Will not re-buy a coin for " + Math.round(P.lossCool / 60) + " hours after a loss on it." : "") +
@@ -249,7 +261,8 @@ export function stepWallet(W, obs, P, ctx) {
     const early = !!P.early && o.score >= 15 && o.bp != null && o.bp >= 0.6 && o.acc != null && o.acc >= 1.5 && num(o.h1) < 10 && num(o.m5) > 0;
     const signal = (o.score >= P.buyLine || early) && !(num(o.h1) > P.maxH1 || num(o.m5) > P.maxM5 || num(o.h24) > P.maxH24)
       && !(P.maxAge > 0 && !(o.age != null && o.age < P.maxAge)) && !(P.minH1 > -1000 && !(num(o.h1) >= P.minH1))
-      && !(P.minM5 > -1000 && !(num(o.m5) >= P.minM5)) && !(P.minAge > 0 && !(o.age != null && o.age >= P.minAge));
+      && !(P.minM5 > -1000 && !(num(o.m5) >= P.minM5)) && !(P.minAge > 0 && !(o.age != null && o.age >= P.minAge))
+      && !(P.minTrade > 0 && !(o.ats != null && o.ats >= P.minTrade)) && !(P.minLiqMc > 0 && !(o.lm != null && o.lm >= P.minLiqMc));
     if ((P.noBoost && o.src && o.src.includes("b")) || (o.hg != null && o.hg > P.maxHG)) continue;
     let viaDip = false;
     if (P.dip > 0) {
