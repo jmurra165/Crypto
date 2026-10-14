@@ -1,0 +1,142 @@
+[
+ {
+  "k": "anns-markit-all",
+  "u": "https://asx.api.markitdigital.com/asx-research/1.0/markets/announcements?page=0&itemsPerPage=25",
+  "status": 200,
+  "bytes": 15482,
+  "type": "application/json; charset=utf-8",
+  "head": "{\"data\":{\"items\":[{\"announcementTypes\":[\"Appendix 3H (Notification of cessation of securities)\"],\"companies\":[{\"symbolDisplay\":\"MIN\"}],\"companyInfo\":[{\"symbol\":\"MIN\",\"xid\":\"5184428\",\"ASXSecurityType\":1,\"displayName\":\"MINERAL RESOURCES LIMITED\",\"issueType\":\"CS\",\"issueTypeName\":\"Common Stock\",\"issueTypeCode\":1,\"isin\":\"AU000000MIN4\",\"xidEntity\":199000554,\"sector\":\"Materials\",\"industryGroup\":\"Materials\",\"industry\":\"Metals & Mining\",\"subIndustry\":\"Diversified Metals & Mining\"}],\"date\":\"2026-10-14T09:17:45.000Z\",\"documentKey\":\"2924-03148466-6A1349282\",\"fileSize\":\"8KB\",\"headline\":\"Notification of cessation of securities - MIN\",\"isPriceSensitive\":false,\"symbol\":\"MIN\",\"symbolsSecondary\":[\"MIN\",\"\"],\"u"
+ },
+ {
+  "k": "anns-markit-co",
+  "u": "https://asx.api.markitdigital.com/asx-research/1.0/companies/PLS/announcements?count=20",
+  "status": 200,
+  "bytes": 1234,
+  "type": "application/json; charset=utf-8",
+  "head": "{\"data\":{\"displayName\":\"PLS GROUP LIMITED\",\"issueType\":\"CS\",\"items\":[{\"announcementType\":\"ISSUED CAPITAL\",\"date\":\"2026-10-14T01:45:28.000Z\",\"documentKey\":\"2924-03148205-6A1349164\",\"fileSize\":\"20KB\",\"headline\":\"Notification of cessation of securities - PLS\",\"isPriceSensitive\":false,\"url\":\"\"},{\"announcementType\":\"PERIODIC REPORTS\",\"date\":\"2026-10-13T23:01:08.000Z\",\"documentKey\":\"2924-03148110-6A1349122\",\"fileSize\":\"133KB\",\"headline\":\"Updated - Sep 2026 Quarterly Activities Report Advisory\",\"isPriceSensitive\":false,\"url\":\"\"},{\"announcementType\":\"ISSUED CAPITAL\",\"date\":\"2026-10-12T00:18:18.000Z\",\"documentKey\":\"2924-03147086-6A1348700\",\"fileSize\":\"34KB\",\"headline\":\"Notification regarding unquoted"
+ },
+ {
+  "k": "anns-asx-v1",
+  "u": "https://www.asx.com.au/asx/1/company/PLS/announcements?count=20&market_sensitive=false",
+  "status": 404,
+  "bytes": 78,
+  "type": "application/json",
+  "head": "{\"error_code\":\"uri-not-found\",\"error_desc\":\"Unable to find API service call.\"}"
+ },
+ {
+  "k": "anns-today-html",
+  "u": "https://www.asx.com.au/asx/v2/statistics/todayAnns.do",
+  "status": 200,
+  "bytes": 1095831,
+  "type": "text/html;charset=utf-8",
+  "head": "<html><head><title>Today's announcements - ASX</title><link rel=\"stylesheet\" href=\"/asx/v2/markets/fonts/fonts.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/flex.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/widgets.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/normalize.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/layout.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/semantics.css\"><link type=\"text/css\" rel=\"stylesheet\" media=\"screen\" href=\"/asx/v2/markets/css/riplatform.css\"><script language=\"JavaScript\"> function submitForm() { document.forms['refreshAnnouncements'].submit(); } </script></head><body class=\"layout-two-"
+ },
+ {
+  "k": "anns-prevday-html",
+  "u": "https://www.asx.com.au/asx/v2/statistics/prevBusDayAnns.do",
+  "status": 200,
+  "bytes": 1198299,
+  "type": "text/html;charset=utf-8",
+  "head": "<html><head><title>Previous trading day announcements - ASX</title><link rel=\"stylesheet\" href=\"/asx/v2/markets/fonts/fonts.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/flex.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/widgets.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/normalize.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/layout.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/semantics.css\"><link type=\"text/css\" rel=\"stylesheet\" media=\"screen\" href=\"/asx/v2/markets/css/riplatform.css\"></head><body class=\"layout-two-column section-dynamic page-3328 wide\"> <section class=\"wrapper\"> <article> <div class=\"page\" id=\"content\"> "
+ },
+ {
+  "k": "anns-year-html",
+  "u": "https://www.asx.com.au/asx/v2/statistics/announcements.do?by=asxCode&asxCode=PLS&timeframe=Y&year=2026",
+  "status": 200,
+  "bytes": 246381,
+  "type": "text/html;charset=utf-8",
+  "head": "<html><head><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/normalize.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/layout.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/semantics.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/flex.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/fonts/fonts.css\"><link rel=\"stylesheet\" href=\"/asx/v2/markets/css/media-queries.css\"><link type=\"text/css\" rel=\"stylesheet\" media=\"screen\" href=\"/asx/v2/markets/css/riplatform.css\"><style> .primary.primary.primary.primary.primary a { text-decoration: underline; } </style></head><body class=\"layout-two-column section-dynamic page-3318 wide\"> <section class=\"wra"
+ },
+ {
+  "k": "companies-csv",
+  "u": "https://www.asx.com.au/asx/research/ASXListedCompanies.csv",
+  "status": 200,
+  "bytes": 99629,
+  "type": "text/csv;charset=UTF-8",
+  "head": "ASX listed companies as at Wed Oct 14 19:50:24 AEDT 2026 Company name,ASX code,GICS industry group \"1414 DEGREES LIMITED\",\"14D\",\"Capital Goods\" \"29METALS LIMITED\",\"29M\",\"Materials\" \"333D LIMITED\",\"T3D\",\"Commercial & Professional Services\" \"360 CAPITAL MORTGAGE REIT\",\"TCF\",\"Not Applic\" \"360 CAPITAL REIT\",\"TOT\",\"Equity Real Estate Investment Trusts (REITs)\" \"3D ENERGI LIMITED\",\"TDO\",\"Energy\" \"3P LEARNING LIMITED..\",\"3PL\",\"Consumer Services\" \"49 METALS LIMITED\",\"49M\",\"Materials\" \"4DMEDICAL LIMITED\",\"4DX\",\"Health Care Equipment & Services\" \"4DS MEMORY LIMITED\",\"4DS\",\"Semiconductors & Semiconductor Equipment\" \"5G NETWORKS LIMITED.\",\"5GN\",\"Software & Services\" \"6K ADDITIVE, INC.\",\"6KA\",\"Materials"
+ },
+ {
+  "k": "markit-header",
+  "u": "https://asx.api.markitdigital.com/asx-research/1.0/companies/PLS/header",
+  "status": 200,
+  "bytes": 347,
+  "type": "application/json; charset=utf-8",
+  "head": "{\"data\":{\"dateListed\":\"2007-09-19\",\"displayName\":\"PLS GROUP LIMITED\",\"priceAsk\":3.18,\"priceBid\":3.15,\"priceChange\":0.08999999999999986,\"priceChangePercent\":2.9220779220779174,\"priceLast\":3.17,\"sector\":\"Materials\",\"industryGroup\":\"Materials\",\"securityType\":1,\"symbol\":\"PLS\",\"volume\":45550465,\"xid\":\"8027516\",\"marketCap\":9935916045,\"statusCode\":\"\"}}"
+ },
+ {
+  "k": "yahoo-1m-5d",
+  "u": "https://query1.finance.yahoo.com/v8/finance/chart/PLS.AX?interval=1m&range=5d",
+  "status": 200,
+  "bytes": 164240,
+  "type": "application/json;charset=utf-8",
+  "head": "{\"chart\":{\"result\":[{\"meta\":{\"currency\":\"AUD\",\"symbol\":\"PLS.AX\",\"exchangeName\":\"ASX\",\"fullExchangeName\":\"ASX\",\"instrumentType\":\"EQUITY\",\"firstTradeDate\":1190160000,\"regularMarketTime\":1791955204,\"hasPrePostMarketData\":false,\"gmtoffset\":39600,\"timezone\":\"AEDT\",\"exchangeTimezoneName\":\"Australia/Sydney\",\"regularMarketPrice\":3.17,\"regularMarketChangePercent\":2.922,\"fulldayPrice\":3.17,\"fulldayChange\":0.09,\"fulldayChangePercent\":2.922,\"fiftyTwoWeekHigh\":6.81,\"fiftyTwoWeekLow\":2.54,\"regularMarketDayHigh\":3.235,\"regularMarketDayLow\":3.09,\"regularMarketVolume\":45549324,\"longName\":\"PLS Group Limited\",\"shortName\":\"PLSGROUP FPO [PLS]\",\"chartPreviousClose\":3.88,\"previousClose\":3.08,\"scale\":3,\"priceHint\":",
+  "points": 1861,
+  "first": "2026-10-07T23:00:00.000Z",
+  "last": "2026-10-14T05:12:00.000Z",
+  "gran": "1m"
+ },
+ {
+  "k": "yahoo-5m-60d",
+  "u": "https://query1.finance.yahoo.com/v8/finance/chart/PLS.AX?interval=5m&range=60d",
+  "status": 200,
+  "bytes": 396579,
+  "type": "application/json;charset=utf-8",
+  "head": "{\"chart\":{\"result\":[{\"meta\":{\"currency\":\"AUD\",\"symbol\":\"PLS.AX\",\"exchangeName\":\"ASX\",\"fullExchangeName\":\"ASX\",\"instrumentType\":\"EQUITY\",\"firstTradeDate\":1190160000,\"regularMarketTime\":1791955204,\"hasPrePostMarketData\":false,\"gmtoffset\":39600,\"timezone\":\"AEDT\",\"exchangeTimezoneName\":\"Australia/Sydney\",\"regularMarketPrice\":3.17,\"regularMarketChangePercent\":2.922,\"fulldayPrice\":3.17,\"fulldayChange\":0.09,\"fulldayChangePercent\":2.922,\"fiftyTwoWeekHigh\":6.81,\"fiftyTwoWeekLow\":2.54,\"regularMarketDayHigh\":3.235,\"regularMarketDayLow\":3.09,\"regularMarketVolume\":45549324,\"longName\":\"PLS Group Limited\",\"shortName\":\"PLSGROUP FPO [PLS]\",\"chartPreviousClose\":4.15,\"previousClose\":3.08,\"scale\":3,\"priceHint\":",
+  "points": 4501,
+  "first": "2026-07-23T00:00:00.000Z",
+  "last": "2026-10-14T05:12:00.000Z",
+  "gran": "5m"
+ },
+ {
+  "k": "yahoo-1h-2y",
+  "u": "https://query1.finance.yahoo.com/v8/finance/chart/PLS.AX?interval=1h&range=2y",
+  "status": 200,
+  "bytes": 355530,
+  "type": "application/json;charset=utf-8",
+  "head": "{\"chart\":{\"result\":[{\"meta\":{\"currency\":\"AUD\",\"symbol\":\"PLS.AX\",\"exchangeName\":\"ASX\",\"fullExchangeName\":\"ASX\",\"instrumentType\":\"EQUITY\",\"firstTradeDate\":1190160000,\"regularMarketTime\":1791955204,\"hasPrePostMarketData\":false,\"gmtoffset\":39600,\"timezone\":\"AEDT\",\"exchangeTimezoneName\":\"Australia/Sydney\",\"regularMarketPrice\":3.17,\"regularMarketChangePercent\":2.922,\"fulldayPrice\":3.17,\"fulldayChange\":0.09,\"fulldayChangePercent\":2.922,\"fiftyTwoWeekHigh\":6.81,\"fiftyTwoWeekLow\":2.54,\"regularMarketDayHigh\":3.235,\"regularMarketDayLow\":3.09,\"regularMarketVolume\":45549324,\"longName\":\"PLS Group Limited\",\"shortName\":\"PLSGROUP FPO [PLS]\",\"chartPreviousClose\":2.87,\"previousClose\":3.08,\"scale\":3,\"priceHint\":",
+  "points": 3546,
+  "first": "2024-10-14T23:00:00.000Z",
+  "last": "2026-10-14T05:12:00.000Z",
+  "gran": "1h"
+ },
+ {
+  "k": "yahoo-1d-5y",
+  "u": "https://query1.finance.yahoo.com/v8/finance/chart/PLS.AX?interval=1d&range=5y",
+  "status": 200,
+  "bytes": 139712,
+  "type": "application/json;charset=utf-8",
+  "head": "{\"chart\":{\"result\":[{\"meta\":{\"currency\":\"AUD\",\"symbol\":\"PLS.AX\",\"exchangeName\":\"ASX\",\"fullExchangeName\":\"ASX\",\"instrumentType\":\"EQUITY\",\"firstTradeDate\":1190160000,\"regularMarketTime\":1791955204,\"hasPrePostMarketData\":false,\"gmtoffset\":39600,\"timezone\":\"AEDT\",\"exchangeTimezoneName\":\"Australia/Sydney\",\"regularMarketPrice\":3.17,\"regularMarketChangePercent\":2.922,\"fulldayPrice\":3.17,\"fulldayChange\":0.09,\"fulldayChangePercent\":2.922,\"fiftyTwoWeekHigh\":6.81,\"fiftyTwoWeekLow\":2.54,\"regularMarketDayHigh\":3.235,\"regularMarketDayLow\":3.09,\"regularMarketVolume\":45549324,\"longName\":\"PLS Group Limited\",\"shortName\":\"PLSGROUP FPO [PLS]\",\"chartPreviousClose\":2.06,\"priceHint\":4,\"currentTradingPeriod\":{\"pre\"",
+  "points": 1266,
+  "first": "2021-10-13T23:00:00.000Z",
+  "last": "2026-10-14T05:20:04.000Z",
+  "gran": "1d"
+ },
+ {
+  "k": "yahoo2-5m",
+  "u": "https://query2.finance.yahoo.com/v8/finance/chart/LTR.AX?interval=5m&range=60d",
+  "status": 200,
+  "bytes": 415231,
+  "type": "application/json;charset=utf-8",
+  "head": "{\"chart\":{\"result\":[{\"meta\":{\"currency\":\"AUD\",\"symbol\":\"LTR.AX\",\"exchangeName\":\"ASX\",\"fullExchangeName\":\"ASX\",\"instrumentType\":\"EQUITY\",\"firstTradeDate\":1166742000,\"regularMarketTime\":1791954805,\"hasPrePostMarketData\":false,\"gmtoffset\":39600,\"timezone\":\"AEDT\",\"exchangeTimezoneName\":\"Australia/Sydney\",\"regularMarketPrice\":0.72,\"regularMarketChangePercent\":0.699,\"fulldayPrice\":0.72,\"fulldayChange\":0.005,\"fulldayChangePercent\":0.699,\"fiftyTwoWeekHigh\":2.65,\"fiftyTwoWeekLow\":0.705,\"regularMarketDayHigh\":0.742,\"regularMarketDayLow\":0.707,\"regularMarketVolume\":49317532,\"longName\":\"Liontown Limited\",\"shortName\":\"LIONTOWN FPO [LTR]\",\"chartPreviousClose\":1.235,\"previousClose\":0.715,\"scale\":3,\"priceHi",
+  "points": 4501,
+  "first": "2026-07-23T00:00:00.000Z",
+  "last": "2026-10-14T05:12:00.000Z",
+  "gran": "5m"
+ },
+ {
+  "k": "stooq-daily",
+  "u": "https://stooq.com/q/d/l/?s=pls.au&i=d",
+  "status": 403,
+  "bytes": 226,
+  "type": "text/html",
+  "head": "<meta charset=utf-8><title>Stooq</title><center style=font-family:arial;margin-top:50px><p><a href=/><img src=//static.stooq.com/stooq.svg height=68></a><p style=font-size:x-large>Access denied<p><small><a href=/>Main Page</a>"
+ },
+ {
+  "k": "markit-chart",
+  "u": "https://asx.api.markitdigital.com/asx-research/1.0/companies/PLS/chart?interval=1m&range=1d",
+  "status": 404,
+  "bytes": 117,
+  "type": "application/json; charset=utf-8",
+  "head": "{\"error\":{\"code\":404,\"message\":\"File Not Found\",\"reason\":\"Cannot GET /1.0/companies/PLS/chart?interval=1m&range=1d\"}}"
+ }
+]
