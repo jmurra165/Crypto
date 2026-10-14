@@ -1,0 +1,18 @@
+name: ASX data probe
+on:
+  push:
+    branches: [asx-probe]
+    paths: ["asx/probe.mjs", ".github/workflows/asx-probe.yml"]
+permissions:
+  contents: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node asx/probe.mjs
+      - run: |
+          git config user.name "probe"; git config user.email "probe@users.noreply.github.com"
+          git add asx/probe-result.json && git commit -m "probe result" && git push
