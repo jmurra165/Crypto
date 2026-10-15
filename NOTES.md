@@ -1,6 +1,6 @@
 # Meme Radar: handover notes
 
-Read this first in any new chat about this project. Last updated 14 Oct 2026 (Brisbane).
+Read this first in any new chat about this project. Last updated 15 Oct 2026 (Brisbane).
 
 Owner: Jaidyn. Everything is a **simulation**; no real wallet is connected. Do not change wallet rules without asking Jaidyn first. Keep the repo public (Actions and Pages are free that way) and never add a payment method or a private key.
 
@@ -64,6 +64,11 @@ All wallets use the same base rules:
   - Check every simulated trade against real Jupiter quotes.
   - Use a separate small wallet with loss limits, and keep the key out of this repo.
   - Note that the ATO may treat frequent trading as a business.
+
+## Changes on 15 Oct (approved by Jaidyn after the 14 Oct review)
+- **Rug score limit can no longer be loosened by tuning.** `GRID.rugMax` is now `[20, 30]` (40 removed), for every tuned wallet including Adaptive. Reason: young coins scoring 30 to 69 were about 94% pulled or dumped, and "rug score under 40" was the tuning's top candidate for Early entry and Strong pumps.
+- **Stops gap past -10%.** In the 14 Oct review, 7 of 9 stop-outs lost more than a clean -10% stop would (worst -26.8%, VEILDOGE -18.6% within 3 minutes). Every sell now records `prior` (gain at the previous check) and `exit` (gain at the check that sold, before price impact and fees), so the gap between checks can be measured. Sells before 15 Oct do not have these fields.
+- **To recheck at 50+ closed trades:** buys between 11 pm and 8 am Brisbane did worse (1 win in 8 vs 3 in 8 in the daytime on 14 Oct). Too few trades to act on yet.
 
 ## Open ideas
 - A real-quote check: record a Jupiter quote for every simulated trade, to measure how far the simulation is from reality.

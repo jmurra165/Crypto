@@ -115,7 +115,7 @@ export function rulesFor(w, tuning) {
 // The values the daily tuning may move between, one step at a time.
 export const GRID = {
   buyLine: [30, 35, 40, 50, 60],
-  rugMax: [20, 30, 40],
+  rugMax: [20, 30],   // 40 removed 15 Oct 2026: young coins scoring 30-69 were ~94% pulled or dumped, so tuning may tighten but never loosen past 30
   maxFails: [0, 1, 2],
   minLiq: [25000, 50000, 100000, 250000, 500000],
   confirm: [false, true],
@@ -233,7 +233,9 @@ export function stepWallet(W, obs, P, ctx) {
   const sell = (a, frac, why) => {
     const p = W.pos[a], o = obs.get(a), qty = p.qty * frac, costPart = p.cost * frac, out = o && o.px > 0 ? sellValue(qty, o, p) : 0;
     W.cash += out;
-    W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at, f: p.f, peak: p.hi && p.px0 ? Math.round((p.hi / p.px0 - 1) * 1000) / 1000 : undefined });
+    W.hist.unshift({ t: now, side: "sell", sym: p.sym, a, amt: out, px: o && o.px > 0 ? o.px : num(p.px), pnl: out - costPart, cost: costPart, held: now - p.at, why, checks: p.checks, conf: p.conf, buyPx: p.px0, buyT: p.at, f: p.f, peak: p.hi && p.px0 ? Math.round((p.hi / p.px0 - 1) * 1000) / 1000 : undefined,
+      // Gain at the previous check and at the check that triggered the sale (before price impact and fees), to measure how far stops gap.
+      prior: p.lp && p.px0 ? Math.round((p.lp / p.px0 - 1) * 1000) / 1000 : undefined, exit: o && o.px > 0 && p.px0 ? Math.round((o.px / p.px0 - 1) * 1000) / 1000 : undefined });
     p.qty -= qty; p.cost -= costPart;
     if (frac >= 1) { delete W.pos[a]; W.cool[a] = now; if (out - costPart < 0 && P.lossCool > 0) { W.lcool = W.lcool || {}; W.lcool[a] = now; } }
   };
@@ -253,6 +255,7 @@ export function stepWallet(W, obs, P, ctx) {
     if (!why && P.maxHold > 0 && now - p.at >= P.maxHold * 60e3) why = "Time limit, " + P.maxHold + " minutes";
     if (why) { sell(a, 1, why); continue; }
     if (P.halfAt > 0 && !p.half && o.px >= e * (1 + P.halfAt)) { sell(a, 0.5, "Took half at " + pc(P.halfAt) + " up"); p.half = true; }
+    p.lp = o.px;
   }
   const holdings = () => { let t = 0; for (const a of Object.keys(W.pos)) { const p = W.pos[a], o = obs.get(a); if (o && o.px > 0) { p.val = sellValue(p.qty, o, p); p.px = o.px; p.now = ctx.verdictOf ? ctx.verdictOf(a) : undefined; } t += num(p.val); } return t; };
   let equity = W.cash + holdings();
@@ -297,7 +300,7 @@ export function stepWallet(W, obs, P, ctx) {
     if (!(amt >= 0.01)) { W.skipped = (W.skipped || 0) + 1; continue; }
     const usdIn = amt * solPx, imp = usdIn / (o.liq / 2 + usdIn), fill = o.px * (1 + imp), qty = (usdIn - amt * fee * solPx) / fill;
     const inf = ctx.info ? ctx.info(a) : { sym: a.slice(0, 4) };
-    W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, liq0: o.liq, hi: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
+    W.pos[a] = { sym: inf.sym, qty, cost: amt, at: now, px0: fill, liq0: o.liq, hi: o.px, lp: o.px, checks: inf.checks, conf: inf.conf, score: o.score };
     W.cash -= amt;
     // Conditions at the moment of buying, kept so live trades can be analysed later.
     const r2 = v => (typeof v === "number" && isFinite(v)) ? Math.round(v * 100) / 100 : null;
