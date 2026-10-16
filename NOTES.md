@@ -115,6 +115,15 @@ The price-sensitive filter is `&priceSensitiveOnly=true` on the market feed; it 
 
 **Paper rule (locked 14 Oct 2026, `PAPER_RULE` in `asx/stats.js`):** jumped 5%+ by entry, share price 50c+, $250k+ traded by entry, sell at the close. Found by searching 1,812 setups; only 4 were positive in both halves (+0.6% net on 42 trades), which is about what chance gives. Never change its settings; the page tracks only trades after locking. Judge at 30 trades, decide at 100.
 
+**Mock wallets (added 16 Oct, `asx/wallets.mjs`, output `wallets.json` on `asx-data`):** four wallets, $10,000 AUD each, simulation only. Live from the 14 Oct lock; the same rules replayed over earlier data are shown separately as a backtest.
+- Paper rule: the locked rule, sells at the close.
+- Paper rule + stops: same buys, +8% take profit / −4% stop from the 5-min bars (stop assumed first if both hit in one bar), else the close.
+- Big-drop bounce: 20c+ shares down 15%+ by entry with $20k+ traded, sells at the close.
+- Control (no filters): any 5%+ jump with $20k+ traded, sells at the close. The yardstick; never change it.
+- Sizing: 20% of the wallet per buy (from the day's starting value), at most 5 buys a day, never more than 10% of dollars traded by entry, skip parcels under $500. Costs: $10 brokerage each way, 2 price steps of spread, 0.2% slippage.
+- Backtest (14 Aug to 14 Oct): paper −0.2%, paper + stops +0.5%, bounce +4.1% (21 trades), control −75.6%. At $2,000 parcels the $20 round-trip brokerage alone is 1%, which turns the paper rule's small edge negative.
+- Do not change wallet rules without asking Jaidyn first.
+
 GitHub's scheduler runs the ASX workflow late (5:07 pm cron ran about 10:35 pm). Still after the close, so fine.
 
 **Ideas not started:** record live bid/ask at entry (header endpoint) to replace the tick-based spread estimate; a scheduled daily ASX review; add next-day open as a horizon.

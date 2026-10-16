@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["asx/collect.mjs", "asx/stats.js", ".github/workflows/asx.yml"]
+    paths: ["asx/collect.mjs", "asx/stats.js", "asx/wallets.mjs", ".github/workflows/asx.yml"]
 
 permissions:
   contents: write
@@ -35,6 +35,8 @@ jobs:
           fi
       - name: Collect and measure
         run: node asx/collect.mjs out
+      - name: Mock wallets
+        run: node asx/wallets.mjs out
       - name: Save results
         run: |
           cd out

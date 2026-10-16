@@ -90,6 +90,13 @@ td.hl small{display:block;color:var(--muted);font-size:12px}
 .notes{color:var(--muted);font-size:13px;max-width:90ch} .notes li{margin-bottom:6px}
 .more{align-self:center}
 @media (max-width:600px){ .big{font-size:32px} h1{font-size:26px} th,td{padding:8px 9px} }
+.wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.wcard{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0}
+.wcard:hover{border-color:var(--accent)} .wcard[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.wcard .nm{font:600 15px var(--display)} .wcard .bal{font:600 24px var(--mono)} .wcard .sub{font-size:12px;color:var(--muted)}
+.wcard svg{display:block;width:100%;height:46px}
+.why{font:600 10px var(--body);text-transform:uppercase;letter-spacing:.05em;padding:2px 6px;border-radius:3px;background:var(--mute-bg);color:var(--muted)}
+.why.target{background:var(--buy-bg);color:var(--buy)} .why.stop{background:var(--sell-bg);color:var(--sell)}
 #paper .kpis{flex:none}
 </style>
 </head>
@@ -108,6 +115,14 @@ td.hl small{display:block;color:var(--muted);font-size:12px}
     </div>
     <div class="kpis" id="kpis"></div>
     <p class="lead" id="heroLead" style="flex-basis:100%"></p>
+  </section>
+
+  <section class="panel" id="wallets">
+    <div class="phd"><h2>Mock wallets · $10,000 each</h2><div class="seg" id="wMode" style="min-width:220px"><button data-v="live">Live since 14 Oct</button><button data-v="backtest">Backtest</button></div></div>
+    <p class="lead" id="wLead"></p>
+    <div class="wgrid" id="wCards"></div>
+    <p class="lead" id="wDesc" style="color:var(--fg)"></p>
+    <div class="tablebox"><table><thead><tr><th>Day</th><th class="l">Bought</th><th>Price</th><th>Parcel</th><th>Exit</th><th>Move</th><th>Profit / loss</th><th>Balance</th></tr></thead><tbody id="wTape"></tbody></table></div>
   </section>
 
   <section class="panel" id="paper">
@@ -227,7 +242,32 @@ function render() {
     ? `Buying small caps that had <b>${sideText()}</b> by entry, with at least <b>${money(f.minVal)}</b> traded, and selling at <b>${hLabel()}</b>: ${s.n} trades averaged <b class="${cls(s.gross)}">${pct(s.gross, 2)}</b> before costs and <b class="${cls(s.net)}">${pct(s.net, 2)}</b> after. ` +
       (s.verdict.key === "edge" ? "It held up in both the older and recent halves." : s.verdict.key === "costs" ? "There is a move, but costs eat it." : s.verdict.key === "few" ? "Not enough trades yet to call it." : "It does not hold up in both halves.")
     : "No trades match this setup yet.";
-  renderPaper(); renderFade(); renderSlice(); renderTape();
+  renderWallets(); renderPaper(); renderFade(); renderSlice(); renderTape();
+}
+
+let W = null, wMode = "live", wSel = "paper";
+const aud = x => (x < 0 ? "−$" : "$") + Math.abs(x).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+$("wMode").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; wMode = b.dataset.v; renderWallets(); });
+$("wCards").addEventListener("click", e => { const b = e.target.closest(".wcard"); if (!b) return; wSel = b.dataset.k; renderWallets(); });
+function spark(curve, start) {
+  const pts = [[null, start], ...curve];
+  if (pts.length < 2) return `<svg viewBox="0 0 200 46"><line x1="0" x2="200" y1="23" y2="23" stroke="var(--line)" stroke-dasharray="3 3"/></svg>`;
+  const v = pts.map(p => p[1]), lo = Math.min(...v, start), hi = Math.max(...v, start), sp = hi - lo || 1;
+  const y = x => 42 - (x - lo) / sp * 38, xs = i => i / (pts.length - 1) * 200;
+  const end = v[v.length - 1], col = end >= start ? "var(--buy)" : "var(--sell)";
+  return `<svg viewBox="0 0 200 46" preserveAspectRatio="none"><line x1="0" x2="200" y1="${y(start)}" y2="${y(start)}" stroke="var(--line)" stroke-dasharray="3 3"/><polyline fill="none" stroke="${col}" stroke-width="1.8" vector-effect="non-scaling-stroke" points="${v.map((x, i) => xs(i).toFixed(1) + "," + y(x).toFixed(1)).join(" ")}"/></svg>`;
+}
+function renderWallets() {
+  $("wMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === wMode));
+  if (!W) { $("wLead").textContent = "Wallets appear after the next collection run."; $("wCards").innerHTML = ""; $("wTape").innerHTML = ""; return; }
+  const A = W.account, d = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", day: "numeric", month: "short" });
+  $("wLead").innerHTML = (wMode === "live" ? `Live record since the rules were locked on ${d.format(W.liveFrom)}, updated after each close. ` : `The same rules replayed over ${d.format(W.backtestFrom)} – ${d.format(W.liveFrom)}, before they were locked. Backtests flatter. `) +
+    `Each buy uses ${A.sizePct}% of the wallet (at most ${A.maxPerDay} a day, never more than ${A.maxOfTraded}% of the dollars already traded), pays $${W.costs.brokerage} brokerage each way, ${W.costs.spreadTicks} price steps of spread and ${W.costs.slipPct}% slippage. Simulation only.`;
+  $("wCards").innerHTML = W.wallets.map(w => { const r = w[wMode]; return `<button class="wcard" data-k="${w.key}" aria-pressed="${w.key === wSel}"><span class="nm">${esc(w.name)}</span><span class="bal num ${cls(r.pnl)}">${aud(r.balance)}</span><span class="sub num"><span class="${cls(r.pnl)}">${r.pnl >= 0 ? "+" : ""}${aud(r.pnl)} (${pct(r.ret, 1)})</span> · ${r.n} trades${r.n ? ` · ${Math.round(r.wins / r.n * 100)}% won` : ""}</span>${spark(r.curve, A.start)}<span class="sub">Costs paid ${aud(r.fees)} · worst drop ${pct(r.maxDrawdown, 1)}</span></button>`; }).join("");
+  const w = W.wallets.find(x => x.key === wSel) || W.wallets[0], r = w[wMode];
+  $("wDesc").innerHTML = `<b>${esc(w.name)}:</b> ${esc(w.desc)}`;
+  $("wTape").innerHTML = r.trades.length ? r.trades.slice(0, 150).map(t => `<tr><td class="num muted">${d.format(Date.parse(t.d + "T00:00:00+10:00"))}</td><td class="l hl"><span class="code">${esc(t.c)}</span> · ${esc(t.h)}<small>${pct(t.jump)} at entry · ${t.shares.toLocaleString("en-AU")} shares</small></td><td class="num">${price(t.px)}</td><td class="num">$${t.cost.toLocaleString("en-AU")}</td><td><span class="why ${t.why}">${t.why === "close" ? "At close" : t.why === "target" ? "Take profit" : "Stop loss"}</span></td><td class="num ${cls(t.r)}">${pct(t.r)}</td><td class="num ${cls(t.pnl)}"><b>${t.pnl >= 0 ? "+" : ""}${aud(t.pnl)}</b></td><td class="num">${aud(t.bal)}</td></tr>`).join("")
+    : `<tr><td colspan="8" class="empty">${wMode === "live" ? "No trades yet. This wallet buys only when its rule fires." : "No trades in the backtest."}</td></tr>`;
 }
 
 function renderPaper() {
@@ -297,6 +337,7 @@ function renderTape() {
 async function load() {
   try {
     const [ev, st] = await Promise.all([fetch(DATA + "events.json?t=" + Date.now()).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), fetch(DATA + "status.json?t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)]);
+    W = await fetch(DATA + "wallets.json?t=" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null);
     events = ev.events || [];
     const ok = events.filter(e => e.st === "ok");
     const d = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", day: "numeric", month: "short" });
