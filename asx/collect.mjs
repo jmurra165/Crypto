@@ -85,6 +85,7 @@ for (let page = 0; page < 100; page++) {
     if (!/^[A-Z0-9]{3}$/.test(code || "")) continue;           // ordinary shares only
     if (listed.size && !listed.has(code)) continue;            // not a listed company (fund, option, etc.)
     if (byKey.has(it.documentKey)) continue;
+    if (headers[code] && headers[code].cap > MAX_CAP && now - headers[code].at < HEADER_MAX_AGE) continue; // known large cap
     const ci = (it.companyInfo || [])[0] || {};
     byKey.set(it.documentKey, {
       k: it.documentKey, t, c: code, h: it.headline || "",

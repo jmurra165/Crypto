@@ -113,4 +113,8 @@ The price-sensitive filter is `&priceSensitiveOnly=true` on the market feed; it 
 - Worth watching as data builds (too few cases, not a verdict): shares 20c+ that dropped 15%+ bounced about +1.6% net (21 trades, both halves positive); up-moves with $250k–1m traded by entry about +1.1% net (33 trades).
 - About 90% of price-sensitive announcements land before the open.
 
+**Paper rule (locked 14 Oct 2026, `PAPER_RULE` in `asx/stats.js`):** jumped 5%+ by entry, share price 50c+, $250k+ traded by entry, sell at the close. Found by searching 1,812 setups; only 4 were positive in both halves (+0.6% net on 42 trades), which is about what chance gives. Never change its settings; the page tracks only trades after locking. Judge at 30 trades, decide at 100.
+
+GitHub's scheduler runs the ASX workflow late (5:07 pm cron ran about 10:35 pm). Still after the close, so fine.
+
 **Ideas not started:** record live bid/ask at entry (header endpoint) to replace the tick-based spread estimate; a scheduled daily ASX review; add next-day open as a horizon.

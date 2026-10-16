@@ -90,6 +90,7 @@ td.hl small{display:block;color:var(--muted);font-size:12px}
 .notes{color:var(--muted);font-size:13px;max-width:90ch} .notes li{margin-bottom:6px}
 .more{align-self:center}
 @media (max-width:600px){ .big{font-size:32px} h1{font-size:26px} th,td{padding:8px 9px} }
+#paper .kpis{flex:none}
 </style>
 </head>
 <body>
@@ -107,6 +108,13 @@ td.hl small{display:block;color:var(--muted);font-size:12px}
     </div>
     <div class="kpis" id="kpis"></div>
     <p class="lead" id="heroLead" style="flex-basis:100%"></p>
+  </section>
+
+  <section class="panel" id="paper">
+    <div class="phd"><h2>Paper rule · locked 14 Oct</h2><span class="muted" style="font-size:12px">Jumped 5%+ by entry · 50c+ share · $250k+ traded · sell at the close · settings never change</span></div>
+    <div class="kpis" id="paperKpis"></div>
+    <p class="lead" id="paperLead"></p>
+    <div class="tablebox" id="paperBox"><table><thead><tr><th>When</th><th class="l">Announcement</th><th>Move at entry</th><th>Close</th><th>After costs</th></tr></thead><tbody id="paperTape"></tbody></table></div>
   </section>
 
   <section class="panel">
@@ -219,7 +227,30 @@ function render() {
     ? `Buying small caps that had <b>${sideText()}</b> by entry, with at least <b>${money(f.minVal)}</b> traded, and selling at <b>${hLabel()}</b>: ${s.n} trades averaged <b class="${cls(s.gross)}">${pct(s.gross, 2)}</b> before costs and <b class="${cls(s.net)}">${pct(s.net, 2)}</b> after. ` +
       (s.verdict.key === "edge" ? "It held up in both the older and recent halves." : s.verdict.key === "costs" ? "There is a move, but costs eat it." : s.verdict.key === "few" ? "Not enough trades yet to call it." : "It does not hold up in both halves.")
     : "No trades match this setup yet.";
-  renderFade(); renderSlice(); renderTape();
+  renderPaper(); renderFade(); renderSlice(); renderTape();
+}
+
+function renderPaper() {
+  const pr = S.PAPER_RULE, dc = S.DEFAULT_COSTS;
+  const all = S.filterEvents(events, pr);
+  const live = all.filter(e => e.t >= S.PAPER_LOCKED), past = all.filter(e => e.t < S.PAPER_LOCKED);
+  const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const nets = live.map(e => e.rc - S.costFrac(e, dc)), pastNet = mean(past.map(e => e.rc - S.costFrac(e, dc)));
+  const liveNet = mean(nets), wins = nets.filter(x => x > 0).length, total = nets.reduce((x, y) => x + y, 0);
+  $("paperKpis").innerHTML = [
+    [`${live.length} / ${S.PAPER_TARGET}`, "New trades since locking"],
+    [pct(liveNet, 2), "Average after costs, new trades", cls(liveNet)],
+    [live.length ? Math.round(wins / live.length * 100) + "%" : "–", "Win rate, new trades"],
+    [pct(total, 1), "Sum of returns, new trades", cls(total)],
+    [pct(pastNet, 2), `Before locking (${past.length} trades)`, cls(pastNet)],
+  ].map(([v, l, cl]) => `<div><b class="${cl || ""}">${v}</b><span>${l}</span></div>`).join("");
+  $("paperLead").innerHTML = !live.length
+    ? `No qualifying trades since it was locked yet. It found ${past.length} in the two months before, so expect one every couple of trading days.`
+    : live.length < 30 ? `Too early to judge: ${live.length} new trade${live.length > 1 ? "s" : ""}. Wait for at least 30, ideally ${S.PAPER_TARGET}.`
+    : liveNet > 0 ? `<b>Still positive</b> on trades it has never seen.` : `<b>Not holding up</b> on new trades — the backtest result was probably luck.`;
+  $("paperBox").hidden = !live.length;
+  const fmt = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Sydney", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  $("paperTape").innerHTML = live.map(e => { const n = e.rc - S.costFrac(e, dc); return `<tr><td class="num muted">${fmt.format(e.t)}</td><td class="l hl"><span class="code">${esc(e.c)}</span> · ${esc(e.h)}<small>${price(e.px)} · ${money(e.val)} traded by entry</small></td><td class="num ${cls(e.jump)}">${pct(e.jump)}</td><td class="num ${cls(e.rc)}">${pct(e.rc)}</td><td class="num ${cls(n)}"><b>${pct(n)}</b></td></tr>`; }).join("");
 }
 
 function renderFade() {

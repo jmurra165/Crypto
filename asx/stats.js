@@ -154,3 +154,9 @@ export function summary(events, c = DEFAULT_COSTS) {
   }
   return out;
 }
+
+// Paper rule, locked on 14 Oct 2026 after the first look at the data. Do not change its settings:
+// it only counts if it keeps working on announcements it has never seen.
+export const PAPER_RULE = { side: "up", minJump: 5, minPx: 0.5, minVal: 250000, horizon: "rc", excludeHalt: true };
+export const PAPER_LOCKED = Date.parse("2026-10-14T10:00:00Z");
+export const PAPER_TARGET = 100;
